@@ -1,4 +1,4 @@
-"""Optional game music and sound effects loaded from assets/sounds."""
+"""에셋에서 배경 음악과 효과음을 불러와 재생한다."""
 from pathlib import Path
 
 import pygame

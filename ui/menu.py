@@ -1,3 +1,5 @@
+"""타이틀 메뉴와 저장 불러오기 화면의 입력·표시를 관리한다."""
+
 import pygame
 from settings import WIDTH, HEIGHT, SKY, MOUNTAIN, GRASS, WHITE, YELLOW
 from core.display import toggle_fullscreen
@@ -50,7 +52,7 @@ class Menu:
 
     def _draw_main(self):
         self._text("나 혼자만 1등급", (500, 112), self.title_font, WHITE)
-        self._text("SOLO SAT", (500, 163), self.font, YELLOW)
+        self._text("SOLO SAT 2.0.3", (500, 163), self.font, YELLOW)
         self._text("STUDY · SURVIVE · RANK UP", (500, 193), self.small, (204, 218, 232))
         self.buttons = []
         self._button("새 게임", 235, 0, "새로운 도전을 시작합니다")

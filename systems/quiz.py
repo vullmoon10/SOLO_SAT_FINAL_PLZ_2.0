@@ -1,3 +1,5 @@
+"""문제를 제공하고 퀴즈 진행, 답안 판정, 제한 시간을 관리한다."""
+
 import pygame
 
 from settings import WRONG_DAMAGE, QUESTION_TIME

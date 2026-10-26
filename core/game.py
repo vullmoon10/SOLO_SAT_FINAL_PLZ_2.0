@@ -1,3 +1,5 @@
+"""게임 상태와 메인 플레이 루프, 충돌·퀴즈 결과 처리를 조정한다."""
+
 import pygame
 from settings import WIDTH, HEIGHT, MAX_HP, choose_cheat
 from entities.player import Player

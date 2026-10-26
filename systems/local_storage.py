@@ -1,4 +1,4 @@
-"""Initialize and manage local-only saves, profiles, and rankings."""
+"""로컬 프로필, 저장 진행 상태, 랭킹 데이터를 초기화하고 관리한다."""
 import json
 import re
 import time

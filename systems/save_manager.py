@@ -1,3 +1,5 @@
+"""플레이어 진행 상태를 파일에 저장하고 다시 불러온다."""
+
 import json
 from pathlib import Path
 

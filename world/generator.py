@@ -1,6 +1,8 @@
+"""시드 기반으로 지형과 난이도별 몹을 생성하고 월드를 확장한다."""
+
 import random
 import pygame
-from settings import WIDTH, HEIGHT, GROUND_Y
+from settings import WIDTH, HEIGHT, GROUND_Y, SPAWN_SAFE_END
 from world.terrain import Terrain
 from entities.enemies import Enemy, ENEMY_TYPES_BY_DIFFICULTY
 
@@ -22,19 +24,23 @@ class World(Terrain):
                 bx = x + self.rng.randint(40, max(41, width - bw))
                 self.decorations.append(pygame.Rect(bx, GROUND_Y - bh, bw, bh))
             if self.rng.random() < 0.35:
-                self.spikes.append({"x": x + self.rng.randint(40, max(41, width - 70)),
-                                    "y": GROUND_Y, "count": self.rng.randint(3, 5)})
+                spike_x = x + self.rng.randint(40, max(41, width - 70))
+                if spike_x >= SPAWN_SAFE_END:
+                    self.spikes.append({"x": spike_x, "y": GROUND_Y, "count": self.rng.randint(3, 5)})
             if self.rng.random() < 0.9:
                 pw = self.rng.randint(100, min(150, width - 40))
                 px = x + self.rng.randint(20, width - pw - 20)
                 py = self.rng.randint(350, 455)
-                self.platforms.append(pygame.Rect(px, py, pw, 12))
-                if self.rng.random() < 0.7:
-                    self.ladders.append(pygame.Rect(px + pw // 2 - 11, py, 22, GROUND_Y - py + 2))
-                if self.rng.random() < 0.6:
-                    self.add_enemy(px + self.rng.randint(15, max(16, pw - 35)), py)
+                if px >= SPAWN_SAFE_END:
+                    self.platforms.append(pygame.Rect(px, py, pw, 12))
+                    if self.rng.random() < 0.7:
+                        self.ladders.append(pygame.Rect(px + pw // 2 - 11, py, 22, GROUND_Y - py + 2))
+                    if self.rng.random() < 0.6:
+                        self.add_enemy(px + self.rng.randint(15, max(16, pw - 35)), py)
             if self.rng.random() < 0.4:
-                self.add_enemy(x + self.rng.randint(40, max(41, width - 35)), GROUND_Y)
+                enemy_x = x + self.rng.randint(40, max(41, width - 35))
+                if enemy_x >= SPAWN_SAFE_END:
+                    self.add_enemy(enemy_x, GROUND_Y)
             x += width
         self.world_end = x
 

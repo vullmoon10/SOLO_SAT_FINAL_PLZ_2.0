@@ -1,3 +1,5 @@
+"""게임 창의 전체 화면 표시 상태를 전환한다."""
+
 import pygame
 
 from settings import WIDTH, HEIGHT

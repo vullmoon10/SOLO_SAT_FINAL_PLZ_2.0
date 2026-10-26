@@ -1,3 +1,5 @@
+"""플레이어의 이동, 점프, 사다리 오르기와 충돌 상태를 관리한다."""
+
 import pygame
 from settings import MOVE_SPEED, GRAVITY, JUMP_POWER, MAX_FALL_SPEED, GROUND_Y
 

@@ -1,4 +1,5 @@
 @echo off
+REM Create the virtual environment, install dependencies, and launch the game.
 cd /d "%~dp0"
 
 python -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"

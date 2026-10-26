@@ -1,3 +1,5 @@
+"""게임을 초기화하고 메뉴와 플레이 화면 사이의 실행 흐름을 연결한다."""
+
 import pygame
 
 from settings import WIDTH, HEIGHT, TITLE

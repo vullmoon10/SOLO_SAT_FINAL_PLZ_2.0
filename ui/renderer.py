@@ -1,3 +1,5 @@
+"""월드, 캐릭터, 몹, 퀴즈와 게임 상태를 화면에 그린다."""
+
 from pathlib import Path
 import math
 
@@ -10,20 +12,48 @@ class Renderer:
     def __init__(self, screen):
         self.screen = screen
         self.enemy_sprites = self._load_enemy_sprites()
+        self.player_sprite = self._load_image(Path("player") / "player.jpg", colorkey=True)
+        self.domain_sprites = self._load_domain_sprites()
         self.alert_font = pygame.font.SysFont("malgungothic", 22, bold=True)
         self.enemy_mark_font = pygame.font.SysFont("malgungothic", 10, bold=True)
 
     @staticmethod
-    def _load_enemy_sprites():
-        image_dir = Path(__file__).resolve().parents[1] / "assets" / "images"
-        sprites = []
-        for index in range(1, 5):
-            image_path = image_dir / f"mob_{index}.png"
-            try:
-                sprites.append(pygame.image.load(str(image_path)).convert_alpha())
-            except (pygame.error, OSError):
-                break
-        return sprites
+    def _load_image(relative_path, colorkey=False):
+        image_path = Path(__file__).resolve().parents[1] / "assets" / "images" / relative_path
+        try:
+            loaded = pygame.image.load(str(image_path))
+            image = loaded.convert_alpha() if image_path.suffix.lower() == ".png" else loaded.convert()
+            if colorkey is True:
+                image.set_colorkey(image.get_at((0, 0))[:3])
+            elif colorkey:
+                image.set_colorkey(colorkey)
+            return image
+        except (pygame.error, OSError):
+            return None
+
+    @classmethod
+    def _load_enemy_sprites(cls):
+        paths = {
+            "easy": Path("difficulty/easy/mob_1.png"),
+            "medium": Path("difficulty/normal/mob_2.png"),
+            "hard": Path("difficulty/hard/mob_4.png"),
+            "expert": Path("difficulty/expert/mob_3.png"),
+        }
+        return {difficulty: cls._load_image(path)
+                for difficulty, path in paths.items()}
+
+    @classmethod
+    def _load_domain_sprites(cls):
+        paths = {
+            "산술": "algbra.png",
+            "분수": "algbra.png",
+            "측정·도형": "geometry.png",
+            "수와 연산": "algbra.png",
+            "문자와 식": "xyz.png",
+            "좌표": "coordinate.png",
+        }
+        return {domain: cls._load_image(Path("type") / filename, colorkey=(255, 255, 255))
+                for domain, filename in paths.items()}
 
     def draw_text(self, text, x, y, color=DARK, font=FONT):
         self.screen.blit(font.render(str(text), True, color), (x, y))
@@ -74,19 +104,27 @@ class Renderer:
             phase = pygame.time.get_ticks() * 0.004 + enemy.rect.x * 0.035
             bob = math.sin(phase) * 2.5
             stretch = 1.0 + math.sin(phase * 2) * 0.035
-            sprite_index = enemy.data["sprite_index"]
-            if sprite_index < len(self.enemy_sprites):
-                source = self.enemy_sprites[sprite_index]
+            source = self.enemy_sprites.get(enemy.data["difficulty"])
+            if source:
                 fit = min(rect.width / source.get_width(), rect.height / source.get_height())
                 sprite_width = max(1, round(source.get_width() * fit))
                 sprite_height = max(1, round(source.get_height() * fit * stretch))
                 animated = pygame.transform.scale(source, (sprite_width, sprite_height))
                 badge = pygame.Surface((sprite_width, sprite_height), pygame.SRCALPHA)
                 badge_y = int(sprite_height * .72)
-                pygame.draw.circle(badge, enemy.data["color"], (sprite_width // 2, badge_y), 8)
-                pygame.draw.circle(badge, DARK, (sprite_width // 2, badge_y), 8, 1)
-                mark = self.enemy_mark_font.render(enemy.data["mark"], True, WHITE)
-                badge.blit(mark, mark.get_rect(center=(sprite_width // 2, badge_y)))
+                domain_icon = self.domain_sprites.get(enemy.data["domain"])
+                if domain_icon:
+                    icon_size = min(18, max(12, min(sprite_width, sprite_height) // 2))
+                    pygame.draw.circle(badge, WHITE, (sprite_width // 2, badge_y), icon_size // 2 + 2)
+                    pygame.draw.circle(badge, enemy.data["color"],
+                                       (sprite_width // 2, badge_y), icon_size // 2 + 2, 1)
+                    icon = pygame.transform.smoothscale(domain_icon, (icon_size, icon_size))
+                    badge.blit(icon, icon.get_rect(center=(sprite_width // 2, badge_y)))
+                else:
+                    pygame.draw.circle(badge, enemy.data["color"], (sprite_width // 2, badge_y), 8)
+                    pygame.draw.circle(badge, DARK, (sprite_width // 2, badge_y), 8, 1)
+                    mark = self.enemy_mark_font.render(enemy.data["mark"], True, WHITE)
+                    badge.blit(mark, mark.get_rect(center=(sprite_width // 2, badge_y)))
                 animated.blit(badge, (0, 0))
             else:
                 animated = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
@@ -118,9 +156,12 @@ class Renderer:
 
     def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)
-        sprite = pygame.Surface(rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(sprite, BLUE, sprite.get_rect(), border_radius=3)
-        pygame.draw.rect(sprite, (40, 45, 150), sprite.get_rect(), 2, border_radius=3)
+        if self.player_sprite:
+            sprite = pygame.transform.scale(self.player_sprite, rect.size)
+        else:
+            sprite = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(sprite, BLUE, sprite.get_rect(), border_radius=3)
+            pygame.draw.rect(sprite, (40, 45, 150), sprite.get_rect(), 2, border_radius=3)
         if rotation:
             sprite = pygame.transform.rotate(sprite, rotation)
         self.screen.blit(sprite, sprite.get_rect(center=rect.center))
@@ -163,8 +204,13 @@ class Renderer:
         panel = pygame.Rect(25, 28, WIDTH - 50, HEIGHT - 56)
         pygame.draw.rect(self.screen, CREAM, panel, border_radius=8)
         level_name = {"easy": "쉬움", "medium": "보통", "hard": "도전", "expert": "최상"}.get(q.get("difficulty"), "수학")
-        self.draw_text(f"{quiz.enemy.data['name']} · {q.get('domain', '수학')} · {level_name}",
-                       45, 40, GRASS, SMALL)
+        domain = q.get("domain", "수학")
+        domain_icon = self.domain_sprites.get(domain)
+        if domain_icon:
+            icon = pygame.transform.scale(domain_icon, (24, 24))
+            self.screen.blit(icon, (44, 36))
+        self.draw_text(f"{quiz.enemy.data['name']} · {domain} · {level_name}",
+                       74 if domain_icon else 45, 40, GRASS, SMALL)
         self.draw_text(q.get("q", ""), 45, 65, DARK, FONT)
         remaining = quiz.remaining()
         self.draw_text(f"{remaining:.1f}s", 905, 40, RED if remaining < 10 else DARK, SMALL)

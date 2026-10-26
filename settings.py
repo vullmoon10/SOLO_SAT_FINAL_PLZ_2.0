@@ -1,3 +1,5 @@
+"""게임 화면, 물리, 색상, 난이도 설정과 공용 폰트를 정의한다."""
+
 import pygame
 import os
 
@@ -18,6 +20,7 @@ CREAM = (250, 249, 239)  # 퀴즈 패널 배경색
 GRAY = (232, 232, 240)  # 선택지 기본 배경색
 YELLOW = (255, 220, 70)  # 강조 색상
 GROUND_Y = 520  # 지면의 화면 세로 좌표
+SPAWN_SAFE_END = 700  # 시작 구간에 가시·발판 몬스터를 배치하지 않는 월드 좌표
 
 pygame.font.init()
 FONT = pygame.font.SysFont("malgungothic", 22)  # 기본 글꼴

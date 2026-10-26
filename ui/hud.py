@@ -1,3 +1,5 @@
+"""게임 중 체력, 점수, 상태 메시지를 HUD로 표시한다."""
+
 import pygame
 from settings import HEIGHT, MAX_HP, RED, DARK, SMALL
 

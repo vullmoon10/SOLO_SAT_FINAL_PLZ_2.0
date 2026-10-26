@@ -1,3 +1,5 @@
+"""난이도·영역별 몹 정보를 정의하고 몹의 문제와 체력을 관리한다."""
+
 import pygame
 
 from systems.quiz import get_random_question
@@ -47,11 +49,21 @@ ENEMY_TYPES_BY_DIFFICULTY = {
     for level in ("easy", "medium", "hard", "expert")
 }
 
+# mob.jpg is split into four sprites; keep its visual progression aligned
+# with the four question difficulty tiers.
+DIFFICULTY_SPRITE_INDEX = {
+    "easy": 0,
+    "medium": 1,
+    "hard": 2,
+    "expert": 3,
+}
+
 
 class Enemy:
     def __init__(self, x, ground_y, enemy_type="easy_arithmetic"):
         self.enemy_type = enemy_type
-        self.data = ENEMY_TYPES[enemy_type]
+        self.data = ENEMY_TYPES[enemy_type].copy()
+        self.data["sprite_index"] = DIFFICULTY_SPRITE_INDEX[self.data["difficulty"]]
         width, height = self.data["size"]
         self.rect = pygame.Rect(x, ground_y - height, width, height)
         self.hp = self.data["hp"]

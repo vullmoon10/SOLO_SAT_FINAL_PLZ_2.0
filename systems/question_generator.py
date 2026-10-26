@@ -1,4 +1,4 @@
-"""Generate original math questions for grades 3 through middle school 1st semester."""
+"""초등 3학년부터 중학교 1학년 1학기 수준의 수학 문제를 생성한다."""
 
 import random
 from fractions import Fraction
