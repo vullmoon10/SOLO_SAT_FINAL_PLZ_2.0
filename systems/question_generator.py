@@ -3,6 +3,7 @@
 import random
 from fractions import Fraction
 
+# 난이도·영역마다 무작위로 출제할 계산 유형을 지정한다.
 QUESTION_KINDS = {
     "easy": {
         "산술": ("multiply", "divide", "add_subtract"),
@@ -27,6 +28,7 @@ QUESTION_KINDS = {
 }
 
 
+# 분수 값을 출력할 때 분모가 1이면 정수로 간단히 표시한다.
 def _format(value):
     # 분수는 기약 결과의 분자·분모로 표시하고 나머지는 문자열로 바꾼다.
     # (값 표현을 선택하는 아래 분기에서 사용한다.)
@@ -35,6 +37,7 @@ def _format(value):
     return str(value)
 
 
+# 문제 내용과 정답·오답 보기를 퀴즈에서 쓰는 구조로 포장한다.
 def _multiple_choice(prompt, answer, distractors, difficulty, domain):
     # 정답과 오답 보기를 섞어 퀴즈 시스템이 쓰는 표준 자료형을 만든다.
     values = list(dict.fromkeys([answer, *distractors]))
@@ -60,6 +63,7 @@ def _multiple_choice(prompt, answer, distractors, difficulty, domain):
     }
 
 
+# 쉬운 난이도에서 산술·분수·측정 문제를 유형별로 생성한다.
 def _easy_question(kind, domain):
     # 쉬운 단계의 선택된 유형에 맞춰 산술·분수·측정 문제를 생성한다.
     # 유형별 분기는 해당 문제 형식과 정답 계산을 선택한다.
@@ -81,6 +85,7 @@ def _easy_question(kind, domain):
         if random.choice((True, False)):
             answer = a + b
             prompt = f"{a} + {b}는 얼마인가요?"
+        # 뺄셈에서는 음수 답이 나오지 않게 큰 수를 앞에 둔다.
         else:
             a, b = max(a, b), min(a, b)
             answer = a - b
@@ -106,6 +111,7 @@ def _easy_question(kind, domain):
             answer = 2 * (width + height)
             prompt = f"가로가 {width} cm, 세로가 {height} cm인 직사각형의 둘레는 몇 cm인가요?"
             distractors = [width * height, width + height, answer + 2]
+        # 넓이 유형이면 직사각형 넓이 공식으로 정답을 계산한다.
         else:
             answer = width * height
             prompt = f"가로가 {width} cm, 세로가 {height} cm인 직사각형의 넓이는 몇 cm²인가요?"
@@ -123,6 +129,7 @@ def _easy_question(kind, domain):
     return _multiple_choice(prompt, answer, distractors, "easy", domain)
 
 
+# 보통 난이도의 정수, 유리수, 식, 방정식, 좌표 문제를 만든다.
 def _medium_question(kind, domain):
     # 보통 단계의 정수·유리수·문자식·방정식·좌표 문제를 만든다.
     # 유형 분기에 따라 해당 계산식을 정하고 선택지를 구성한다.
@@ -132,6 +139,7 @@ def _medium_question(kind, domain):
         answer = a + b if op == "+" else a - b if op == "−" else a * b
         return _multiple_choice(f"정수 {a} {op} ({b})의 값은?", answer,
                                 [-(answer), answer + 1, answer - 1], "medium", domain)
+    # 서로 다른 분모의 분수 계산 문제를 생성한다.
     if kind == "rational":
         d1, d2 = random.choice(((2, 3), (2, 5), (3, 4), (3, 5), (4, 5)))
         a, b = random.randint(1, d1 - 1), random.randint(1, d2 - 1)
@@ -139,11 +147,13 @@ def _medium_question(kind, domain):
         answer = Fraction(a, d1) + Fraction(b, d2) if op == "+" else Fraction(a, d1) - Fraction(b, d2)
         distractors = [Fraction(a, d1) + Fraction(b, d1), Fraction(a + b, d1 + d2), -answer]
         return _multiple_choice(f"{a}/{d1} {op} {b}/{d2}를 계산하면?", answer, distractors, "medium", domain)
+    # 주어진 x를 일차식에 대입해 값을 구하는 문제를 만든다.
     if kind == "expression":
         a, b, x = random.randint(2, 8), random.randint(1, 12), random.randint(-5, 8)
         answer = a * x + b
         return _multiple_choice(f"x = {x}일 때, {a}x + {b}의 값은?", answer,
                                 [a * (x + b), a * x - b, answer + a], "medium", domain)
+    # 일차방정식의 해를 계산하는 문제를 구성한다.
     if kind == "equation":
         a, x, b = random.randint(2, 7), random.randint(-8, 12), random.randint(-12, 15)
         c = a * x + b
@@ -155,6 +165,7 @@ def _medium_question(kind, domain):
                             [x, -y, y + 1], "medium", domain)
 
 
+# 어려운 난이도에서 계산 순서와 좌표 사분면 문제를 만든다.
 def _challenge_question(kind, domain):
     # 어려움 단계에서 계산 순서와 사분면 판별 문제를 생성한다.
     # 유형별 분기는 각 영역에 맞는 문제와 정답을 만든다.
@@ -163,6 +174,7 @@ def _challenge_question(kind, domain):
         answer = a - b * c
         return _multiple_choice(f"정수 {a} − ({b}) × {c}의 값은?", answer,
                                 [(a - b) * c, a + b * c, answer + c], "hard", domain)
+    # 어려운 난이도의 분수 연산에서 오답 보기를 함께 만든다.
     if kind == "rational":
         d1, d2 = random.choice(((4, 5), (5, 6), (6, 7), (8, 9), (10, 12)))
         a, b = random.randint(1, d1 - 1), random.randint(1, d2 - 1)
@@ -172,11 +184,13 @@ def _challenge_question(kind, domain):
         distractors = [Fraction(a + b, d1 + d2), left - right if op == "+" else left + right,
                        answer + Fraction(1, d1 * d2)]
         return _multiple_choice(f"{a}/{d1} {op} {b}/{d2}를 계산하면?", answer, distractors, "hard", domain)
+    # 여러 정수 항이 포함된 식의 값을 구하는 문제를 만든다.
     if kind == "expression":
         a, b, c, x = random.randint(2, 7), random.randint(-9, 9), random.randint(-9, 9), random.randint(-6, 8)
         answer = a * x + b - c
         return _multiple_choice(f"x = {x}일 때, {a}x + ({b}) − ({c})의 값은?", answer,
                                 [a * (x + b) - c, a * x - b - c, answer + a], "hard", domain)
+    # 계수 범위를 높여 해를 구하는 방정식 문제를 생성한다.
     if kind == "equation":
         a, x, b = random.randint(3, 9), random.randint(-10, 10), random.randint(-15, 15)
         c = a * x + b
@@ -193,6 +207,7 @@ def _challenge_question(kind, domain):
     return _multiple_choice(f"점 A({x}, {y})가 속하는 사분면은?", quadrant, distractors, "hard", domain)
 
 
+# 최상 난이도의 복합 계산, 문자식, 방정식, 좌표 이동 문제를 만든다.
 def _expert_question(kind, domain):
     # 최상 단계의 복합 계산, 식, 방정식, 좌표 이동 문제를 만든다.
     # 유형별 분기는 지정한 난이도의 문제 형식을 선택한다.
@@ -201,6 +216,7 @@ def _expert_question(kind, domain):
         answer = a - (b + c) * d
         return _multiple_choice(f"정수 {a} − ({b} + {c}) × {d}의 값은?", answer,
                                 [a - b + c * d, (a - b + c) * d, answer + d], "expert", domain)
+    # 세 분수가 포함된 복합 덧셈·뺄셈 문제를 구성한다.
     if kind == "rational":
         denominator = random.choice((6, 8, 10, 12))
         numerators = [random.randint(-denominator + 1, denominator - 1) for _ in range(3)]
@@ -211,6 +227,7 @@ def _expert_question(kind, domain):
         return _multiple_choice(
             f"{a}/{denominator} + ({b}/{denominator}) − ({c}/{denominator})의 값은?",
             answer, distractors, "expert", domain)
+    # 괄호가 있는 두 식의 차를 계산하는 문제를 생성한다.
     if kind == "expression":
         a, b, c, d, x = (random.randint(2, 6), random.randint(-8, 8),
                          random.randint(2, 5), random.randint(-7, 7), random.randint(-5, 7))
@@ -219,6 +236,7 @@ def _expert_question(kind, domain):
                                 answer,
                                 [a * x + b - c * x + d, (a - c) * (x + b + d), answer + a],
                                 "expert", domain)
+    # 괄호를 포함한 일차방정식에서 x를 찾게 한다.
     if kind == "equation":
         a, b, x = random.randint(2, 6), random.randint(-8, 8), random.randint(-7, 9)
         c = a * (x + b)
@@ -236,6 +254,7 @@ def _expert_question(kind, domain):
     # 좌표축 위가 정답이면 보기 하나를 그 항목으로 바꾼다.
     if quadrant == "좌표축 위":
         distractors[0] = "좌표축 위"
+    # 사분면이 정답이면 해당 사분면 외에 좌표축을 오답 보기로 둔다.
     else:
         distractors.remove(quadrant)
         distractors.append("좌표축 위")
@@ -254,8 +273,10 @@ def generate_math_question(difficulty=None, domain=None):
     # 난이도에 해당하는 전용 생성기로 문제 작성을 넘긴다.
     if level == "easy":
         return _easy_question(kind, domain)
+    # 보통 난이도 문제는 정수·유리수·문자식 생성기로 보낸다.
     if level == "medium":
         return _medium_question(kind, domain)
+    # 어려움 난이도 문제는 도전 문제 생성기로 보낸다.
     if level == "hard":
         return _challenge_question(kind, domain)
     return _expert_question(kind, domain)

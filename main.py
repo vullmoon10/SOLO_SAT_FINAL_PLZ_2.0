@@ -7,11 +7,15 @@ from core.game import Game
 from systems.local_storage import LocalStorage
 from systems.audio import AudioManager
 from ui.menu import Menu
+from ui.name_entry import get_player_name
 
 
 # 새 게임용 닉네임과 과목 정보를 만들고 초기 저장 상태를 반환한다.
-def _new_session(storage):
-    nickname = input("닉네임 (비우면 자동 지정): ").strip() or storage.next_nickname()
+def _new_session(storage, screen, audio=None):
+    nickname = get_player_name(screen, audio=audio)
+    if nickname is None:
+        return None
+    nickname = nickname.strip() or storage.next_nickname()
     subject = "수학"
     return {"nickname": nickname, "subject": subject}, None
 
@@ -57,8 +61,13 @@ def main():
                 break
             # 새 게임은 새 세션을 만들고 게임 화면으로 전환한다.
             if action == "new_game":
-                session, state = _new_session(storage)
+                selected = _new_session(storage, screen, audio=audio)
+                if selected is None:
+                    break
+                screen = pygame.display.get_surface()
+                session, state = selected
                 Game(screen, session, state, local_storage=storage, audio=audio).run()
+                screen = pygame.display.get_surface()
                 audio.play_menu_music()
             # 불러오기는 저장 상태가 있을 때만 게임을 재개한다.
             elif action == "load_game":
@@ -67,6 +76,7 @@ def main():
                 if selected:
                     session, state = selected
                     Game(screen, session, state, local_storage=storage, audio=audio).run()
+                    screen = pygame.display.get_surface()
                     audio.play_menu_music()
             # 랭킹 메뉴는 현재 로컬 기록을 출력한다.
             elif action == "leaderboard":

@@ -57,6 +57,7 @@ class Game:
         self.running = True
         self.game_over = False
         self.paused = False
+        self.cheat_menu_open = False
         self.paused_at = 0
         self.countdown_until = pygame.time.get_ticks() + 5000
         self.damage_cooldown_until = 0
@@ -117,6 +118,7 @@ class Game:
         if self.game_over:
             return
         self.game_over = True
+        # 오디오 기능이 준비되어 있을 때 종료 효과음을 재생한다.
         if self.audio:
             self.audio.play_game_over()
 
@@ -125,6 +127,7 @@ class Game:
         nearby = self.player.rect.inflate(60, 45)
         # 월드의 몹을 확인해 상호작용 범위에 들어온 적을 찾는다.
         for enemy in self.world.enemies:
+            # 살아 있는 몹의 충돌 범위 안에 들어오면 퀴즈를 연다.
             if enemy.active and nearby.colliderect(enemy.rect):
                 self.quiz.open(enemy)
                 return
@@ -140,17 +143,37 @@ class Game:
             self.screen = toggle_fullscreen(self.screen)
             self.renderer.screen = self.screen
             return
+        # F9를 눌러 치트 메뉴를 열고 숫자 키로 프리셋을 적용한다.
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F9:
+            self.cheat_menu_open = not self.cheat_menu_open
+            return
+        if self.cheat_menu_open:
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_ESCAPE, pygame.K_F9):
+                    self.cheat_menu_open = False
+                elif pygame.K_0 <= event.key <= pygame.K_5:
+                    code = "" if event.key == pygame.K_0 else str(event.key - pygame.K_0)
+                    self.cheats.clear()
+                    self.cheats.update(choose_cheat(code))
+                    label = "일반 모드" if not self.cheats else f"치트 {code} 적용"
+                    self.show_message(label)
+                    self.cheat_menu_open = False
+            return
         # 게임 오버 화면에서는 ESC로만 게임을 종료한다.
         if self.game_over:
+            # ESC 입력은 게임 루프를 종료한다.
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
             return
         # ESC는 일시 정지를 토글하고 멈춘 시간만큼 제한 시간을 보정한다.
+        # ESC를 누르면 정지 상태를 반전하고 경과 시간을 기록한다.
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             now = pygame.time.get_ticks()
             self.paused = not self.paused
+            # 멈추는 순간의 시각을 기록해 재개 때 시간 제한을 조정한다.
             if self.paused:
                 self.paused_at = now
+            # 재개 시 정지된 시간을 타이머에 더해 남은 시간을 보존한다.
             else:
                 paused_duration = now - self.paused_at
                 # 카운트다운 중 정지했다면 남은 대기 시간도 뒤로 미룬다.
@@ -165,6 +188,7 @@ class Game:
                 self.audio.set_paused(self.paused)
             return
         # 일시 정지 중에는 게임 내 입력을 무시한다.
+        # 정지 중에는 이동 및 상호작용 입력을 받지 않는다.
         if self.paused:
             return
         # 시작 카운트다운이 끝나기 전에는 플레이 입력을 받지 않는다.
@@ -176,8 +200,10 @@ class Game:
             return
         # 플레이 중 키 입력으로 점프나 주변 몹 상호작용을 수행한다.
         if event.type == pygame.KEYDOWN:
+            # 스페이스는 점프를 시작한다.
             if event.key == pygame.K_SPACE:
                 self.player.jump()
+            # E 키는 가까운 몹과 문제를 시작한다.
             elif event.key == pygame.K_e:
                 self.open_nearby_enemy()
 
@@ -190,12 +216,15 @@ class Game:
         now = pygame.time.get_ticks()
         # 피해 무적 시간이 끝났을 때 가시 충돌을 확인한다.
         if now >= self.damage_cooldown_until:
+            # 각 가시 묶음의 충돌 영역을 검사한다.
             for spike in self.world.spikes:
                 spike_rect = pygame.Rect(spike["x"], spike["y"] - 14, spike["count"] * 13, 14)
+                # 충돌이 있을 때만 피해 판정과 반동을 적용한다.
                 if self.player.rect.colliderect(spike_rect):
                     # 무피해 설정이 없으면 가시 피해를 적용한다.
                     if not self.cheats.get("no_damage"):
                         self.hp = max(0, self.hp - 1)
+                        # 실제 피해가 반영되면 효과음을 출력한다.
                         if self.audio:
                             self.audio.play_effect("damage")
                     self.damage_cooldown_until = now + 900
@@ -207,6 +236,7 @@ class Game:
         self.world.update_generation(self.player.rect.x)
         # 플레이어가 활성 몹과 닿으면 해당 몹의 퀴즈를 연다.
         for enemy in self.world.enemies:
+            # 활성 몹과 충돌한 순간 문제를 열고 중복 진입을 막는다.
             if enemy.active and self.player.rect.colliderect(enemy.rect):
                 self.quiz.open(enemy)
                 break
@@ -214,6 +244,7 @@ class Game:
         if self.player.rect.top > HEIGHT:
             self.player.reset_position()
             self.camera_x = 0
+            # 무피해 설정이 꺼진 경우에만 추락 피해를 준다.
             if not self.cheats.get("no_damage"):
                 self.hp = max(0, self.hp - 10)
         # 낙하나 가시 피해로 체력이 소진되면 게임을 끝낸다.
@@ -231,11 +262,36 @@ class Game:
         # 우선순위에 따라 한 가지 상태 오버레이를 표시한다.
         if self.game_over:
             self.renderer.draw_game_over(self.score)
+        # 일시 정지 상태에는 재개 안내를 표시한다.
         elif self.paused:
             self.renderer.draw_pause_overlay()
+        # 시작 대기 중에는 카운트다운 숫자를 표시한다.
         elif pygame.time.get_ticks() < self.countdown_until:
             seconds = max(1, (self.countdown_until - pygame.time.get_ticks() + 999) // 1000)
             self.renderer.draw_start_countdown(seconds)
+        if self.cheat_menu_open:
+            self._draw_cheat_menu()
+
+    def _draw_cheat_menu(self):
+        shade = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 150))
+        self.screen.blit(shade, (0, 0))
+        panel = pygame.Rect(WIDTH // 2 - 220, HEIGHT // 2 - 150, 440, 300)
+        pygame.draw.rect(self.screen, (250, 249, 239), panel, border_radius=14)
+        pygame.draw.rect(self.screen, (39, 54, 67), panel, 3, border_radius=14)
+        lines = [
+            ("치트 선택", (39, 54, 67), 32),
+            ("1 무피해   2 초고속   3 높이 점프", (39, 54, 67), 20),
+            ("4 초고속 + 높이 점프", (39, 54, 67), 20),
+            ("5 전체 치트   0 치트 끄기", (39, 54, 67), 20),
+            ("숫자 키로 적용 · F9 또는 ESC로 닫기", (80, 90, 100), 17),
+        ]
+        y = panel.y + 30
+        for text, color, size in lines:
+            font = pygame.font.SysFont("malgungothic", size, bold=size == 32)
+            surface = font.render(text, True, color)
+            self.screen.blit(surface, surface.get_rect(center=(panel.centerx, y + surface.get_height() // 2)))
+            y += surface.get_height() + 20
     # 입력·갱신·저장·렌더링을 반복하고 종료 시 최종 상태를 저장한다.
     def run(self):
         # 실행 상태가 유지되는 동안 매 프레임 게임 작업을 처리한다.

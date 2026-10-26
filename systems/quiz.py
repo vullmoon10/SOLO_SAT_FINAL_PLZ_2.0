@@ -30,6 +30,7 @@ class Quiz:
 
     # 살아 있는 몹의 문제와 제한 시간으로 퀴즈를 연다.
     def open(self, enemy):
+        # 처치되지 않은 적에게만 퀴즈를 연결한다.
         if enemy.active:
             self.enemy = enemy
             self.started = pygame.time.get_ticks()
@@ -70,6 +71,7 @@ class Quiz:
 
     # 시간이 끝난 문제를 오답 처리하고 시간 초과 결과를 반환한다.
     def check_timeout(self):
+        # 문제가 열려 있고 제한 시간이 끝난 경우 시간 초과 결과를 만든다.
         if self.active and self.remaining() <= 0:
             enemy = self.enemy
             damage = 0 if self.cheats.get("no_damage") else WRONG_DAMAGE

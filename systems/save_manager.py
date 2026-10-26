@@ -16,7 +16,9 @@ class SaveManager:  # 진행 데이터를 JSON 파일로 저장하고 불러오�
     def load(self):  # 저장 파일을 읽어 데이터로 반환
         if not self.path.exists():  # 저장 파일이 없으면 불러올 데이터가 없음
             return None
+        # 파일 읽기나 JSON 해석이 실패하면 불러올 상태가 없는 것으로 처리한다.
         try:
             return json.loads(self.path.read_text(encoding="utf-8"))
+        # 파일 읽기나 JSON 해석에 실패하면 저장된 상태가 없는 것으로 본다.
         except (OSError, json.JSONDecodeError):  # 파일 읽기 또는 JSON 해석 실패를 처리
             return None

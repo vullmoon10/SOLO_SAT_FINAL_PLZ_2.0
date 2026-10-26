@@ -10,5 +10,6 @@ def draw_hud(screen, hp, score, message):  # 화면에 체력·점수·조작 �
     screen.blit(SMALL.render(f"HP {hp}", True, DARK), (15, 32))
     screen.blit(SMALL.render(f"SCORE {score}", True, DARK), (15, 52))
     screen.blit(SMALL.render("A/D 이동  SPACE 점프  W/S 사다리", True, DARK), (15, HEIGHT - 25))
+    # 알림 문구가 있을 때만 점수 옆에 추가 메시지를 표시한다.
     if message:  # 표시할 알림이 있으면 화면에 출력
         screen.blit(SMALL.render(message, True, DARK), (250, 25))

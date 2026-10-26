@@ -8,7 +8,9 @@ from settings import *
 from ui.hud import draw_hud
 
 
+# 배경, 지형, 캐릭터, HUD와 퀴즈 화면을 그리는 렌더링 담당 객체다.
 class Renderer:
+    # 화면 표면과 게임에서 사용할 이미지·글꼴을 불러온다.
     def __init__(self, screen):
         self.screen = screen
         self.enemy_sprites = self._load_enemy_sprites()
@@ -18,20 +20,26 @@ class Renderer:
         self.enemy_mark_font = pygame.font.SysFont("malgungothic", 10, bold=True)
 
     @staticmethod
+    # 이미지 형식에 맞춰 투명도를 보존하며 파일을 불러온다.
     def _load_image(relative_path, colorkey=False):
         image_path = Path(__file__).resolve().parents[1] / "assets" / "images" / relative_path
+        # 경로가 유효하면 화면 형식에 맞는 이미지 표면을 만든다.
         try:
             loaded = pygame.image.load(str(image_path))
             image = loaded.convert_alpha() if image_path.suffix.lower() == ".png" else loaded.convert()
+            # 요청에 따라 배경색 또는 지정 색상을 투명 처리한다.
             if colorkey is True:
                 image.set_colorkey(image.get_at((0, 0))[:3])
+            # 별도로 지정된 배경색은 투명 키로 설정한다.
             elif colorkey:
                 image.set_colorkey(colorkey)
             return image
+        # 에셋이 없어도 기본 도형 렌더링으로 게임을 계속할 수 있게 한다.
         except (pygame.error, OSError):
             return None
 
     @classmethod
+    # 난이도별 몹 이미지 경로를 난이도 이름으로 묶어 반환한다.
     def _load_enemy_sprites(cls):
         paths = {
             "easy": Path("difficulty/easy/mob_1.png"),
@@ -43,6 +51,7 @@ class Renderer:
                 for difficulty, path in paths.items()}
 
     @classmethod
+    # 문제 영역을 표시할 유형 아이콘을 파일에서 불러온다.
     def _load_domain_sprites(cls):
         paths = {
             "산술": "algbra.png",
@@ -55,56 +64,76 @@ class Renderer:
         return {domain: cls._load_image(Path("type") / filename, colorkey=(255, 255, 255))
                 for domain, filename in paths.items()}
 
+    # 지정한 글꼴과 색상으로 텍스트를 화면에 출력한다.
     def draw_text(self, text, x, y, color=DARK, font=FONT):
         self.screen.blit(font.render(str(text), True, color), (x, y))
 
+    # 카메라 위치를 반영한 하늘·산·구름 배경을 그린다.
     def draw_background(self, camera_x):
         self.screen.fill(SKY)
+        # 반복 패턴의 산을 배치해 화면 전체 배경을 채운다.
         for i in range(-1, 7):
             x = i * 260 - int(camera_x) % 260
             pygame.draw.polygon(self.screen, MOUNTAIN, [(x, 520), (x + 125, 360 + (i % 3) * 30), (x + 260, 520)])
         cloud_offset = int(pygame.time.get_ticks() * 0.025)
+        # 천천히 이동하는 구름 위치를 계산한다.
         for i in range(6):
             x = (i * 210 - cloud_offset) % (WIDTH + 180) - 80
             y = 90 + (i % 3) * 55
+            # 여러 원을 겹쳐 구름 한 덩어리를 그린다.
             for cx, cy, radius in [(x, y, 17), (x + 20, y - 8, 20), (x + 40, y, 15)]:
                 pygame.draw.circle(self.screen, WHITE, (cx, cy), radius)
 
+    # 화면 안에 보이는 지형, 위험 요소, 몹과 영역 아이콘을 그린다.
     def draw_world(self, world, camera_x):
+        # 지면과 발판을 색상에 맞춰 그리고 화면 밖 요소는 생략한다.
         for collection, fill, accent in ((world.ground_segments, DIRT, GRASS), (world.platforms, PLATFORM_COLOR, GRASS)):
+            # 각 지면·발판 조각을 화면 좌표로 옮겨 표시한다.
             for segment in collection:
                 rect = segment.move(-camera_x, 0)
+                # 화면 안에 일부라도 들어오는 조각만 그린다.
                 if rect.right >= 0 and rect.left <= WIDTH:
                     pygame.draw.rect(self.screen, fill, rect)
                     pygame.draw.rect(self.screen, accent, (rect.x, rect.y, rect.width, 7))
+        # 사다리 기둥과 가로대를 그린다.
         for ladder in world.ladders:
             rect = ladder.move(-camera_x, 0)
+            # 보이지 않는 사다리는 그리기를 생략한다.
             if rect.right < 0 or rect.left > WIDTH:
                 continue
             pygame.draw.line(self.screen, (180, 100, 55), rect.topleft, (rect.left, rect.bottom), 3)
             pygame.draw.line(self.screen, (180, 100, 55), (rect.right, rect.top), (rect.right, rect.bottom), 3)
+            # 두 기둥 사이에 일정 간격으로 가로대를 추가한다.
             for y in range(rect.top + 8, rect.bottom, 13):
                 pygame.draw.line(self.screen, (180, 100, 55), (rect.left, y), (rect.right, y), 3)
+        # 배경 장식을 그린다.
         for item in world.decorations:
             rect = item.move(-camera_x, 0)
+            # 화면 안에 있는 장식만 그린다.
             if rect.right >= 0 and rect.left <= WIDTH:
                 pygame.draw.rect(self.screen, DIRT, rect)
                 pygame.draw.rect(self.screen, (91, 57, 36), rect, 2)
+        # 가시 구간의 삼각형을 화면에 배치한다.
         for spike in world.spikes:
             x, y = spike["x"] - camera_x, spike["y"]
+            # 가시 개수만큼 삼각형을 나란히 그린다.
             for i in range(spike["count"]):
                 sx = x + i * 13
                 pygame.draw.polygon(self.screen, (220, 45, 65), [(sx, y), (sx + 7, y - 15), (sx + 13, y)])
+        # 활성 몹을 애니메이션과 영역 아이콘을 포함해 표시한다.
         for enemy in world.enemies:
+            # 처치된 몹은 렌더링하지 않는다.
             if not enemy.active:
                 continue
             rect = enemy.rect.move(-camera_x, 0)
+            # 화면 바깥 몹은 그리기를 건너뛴다.
             if rect.right < 0 or rect.left > WIDTH:
                 continue
             phase = pygame.time.get_ticks() * 0.004 + enemy.rect.x * 0.035
             bob = math.sin(phase) * 2.5
             stretch = 1.0 + math.sin(phase * 2) * 0.035
             source = self.enemy_sprites.get(enemy.data["difficulty"])
+            # 이미지가 있으면 비율에 맞춰 몹을 그리고, 없으면 도형으로 대체한다.
             if source:
                 fit = min(rect.width / source.get_width(), rect.height / source.get_height())
                 sprite_width = max(1, round(source.get_width() * fit))
@@ -113,6 +142,7 @@ class Renderer:
                 badge = pygame.Surface((sprite_width, sprite_height), pygame.SRCALPHA)
                 badge_y = int(sprite_height * .72)
                 domain_icon = self.domain_sprites.get(enemy.data["domain"])
+                # 몹의 문제 영역을 작은 아이콘 배지로 표시한다.
                 if domain_icon:
                     icon_size = min(18, max(12, min(sprite_width, sprite_height) // 2))
                     pygame.draw.circle(badge, WHITE, (sprite_width // 2, badge_y), icon_size // 2 + 2)
@@ -120,12 +150,14 @@ class Renderer:
                                        (sprite_width // 2, badge_y), icon_size // 2 + 2, 1)
                     icon = pygame.transform.smoothscale(domain_icon, (icon_size, icon_size))
                     badge.blit(icon, icon.get_rect(center=(sprite_width // 2, badge_y)))
+                # 영역 아이콘이 없으면 글자 표식으로 몹 유형을 구분한다.
                 else:
                     pygame.draw.circle(badge, enemy.data["color"], (sprite_width // 2, badge_y), 8)
                     pygame.draw.circle(badge, DARK, (sprite_width // 2, badge_y), 8, 1)
                     mark = self.enemy_mark_font.render(enemy.data["mark"], True, WHITE)
                     badge.blit(mark, mark.get_rect(center=(sprite_width // 2, badge_y)))
                 animated.blit(badge, (0, 0))
+            # 몹 이미지가 없으면 단색 타원으로 외형을 대신한다.
             else:
                 animated = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
                 pygame.draw.ellipse(animated, enemy.data["color"], animated.get_rect())
@@ -133,11 +165,13 @@ class Renderer:
             animated = pygame.transform.rotozoom(animated, math.sin(phase) * 3, 1)
             animated_rect = animated.get_rect(center=(rect.centerx, int(rect.centery + bob)))
             self.screen.blit(animated, animated_rect)
+            # 오답 상태가 유지되는 동안 몹 위에 경고 표식을 띄운다.
             if enemy.wrong_until > pygame.time.get_ticks():
                 alert = self.alert_font.render("!", True, WHITE)
                 pygame.draw.circle(self.screen, (220, 45, 65), (rect.centerx, rect.top - 5), 11)
                 self.screen.blit(alert, alert.get_rect(center=(rect.centerx, rect.top - 6)))
 
+    # 시작 전 화면을 어둡게 덮고 남은 카운트다운을 보여준다.
     def draw_start_countdown(self, seconds):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((10, 15, 25, 175))
@@ -147,6 +181,7 @@ class Renderer:
         self.screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 75)))
         self.screen.blit(number, number.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40)))
 
+    # 플레이를 멈춘 동안 재개 안내를 화면 중앙에 표시한다.
     def draw_pause_overlay(self):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((10, 15, 25, 175))
@@ -154,26 +189,34 @@ class Renderer:
         label = TITLE_FONT.render("PAUSED · ESC로 계속", True, WHITE)
         self.screen.blit(label, label.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
 
+    # 플레이어 이미지가 있으면 사용하고 없으면 기본 사각형으로 표시한다.
     def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)
+        # 에셋이 있으면 플레이어 크기에 맞춰 표시한다.
         if self.player_sprite:
             sprite = pygame.transform.scale(self.player_sprite, rect.size)
+        # 이미지가 없으면 기본 색상 사각형을 플레이어로 표시한다.
         else:
             sprite = pygame.Surface(rect.size, pygame.SRCALPHA)
             pygame.draw.rect(sprite, BLUE, sprite.get_rect(), border_radius=3)
             pygame.draw.rect(sprite, (40, 45, 150), sprite.get_rect(), 2, border_radius=3)
+        # 게임 오버 연출 등 요청된 회전 값을 적용한다.
+        # 요청된 회전이 있을 때만 이미지 방향을 바꾼다.
         if rotation:
             sprite = pygame.transform.rotate(sprite, rotation)
         self.screen.blit(sprite, sprite.get_rect(center=rect.center))
 
+    # HUD 렌더링을 전용 그리기 함수에 넘긴다.
     def draw_hud(self, hp, score, message):
         draw_hud(self.screen, hp, score, message)
 
+    # 픽셀 스타일 글자를 확대해 게임 오버 화면용 표면으로 만든다.
     def _pixel_text(self, text, color, scale=2, size=12):
         font = pygame.font.SysFont("monospace", size, bold=True)
         glyphs = font.render(str(text), False, color)
         return pygame.transform.scale(glyphs, (glyphs.get_width() * scale, glyphs.get_height() * scale))
 
+    # 게임 오버 배경과 최종 점수, 타이틀 복귀 안내를 그린다.
     def draw_game_over(self, score):
         tint = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         tint.fill((205, 15, 25, 120))
@@ -194,7 +237,9 @@ class Renderer:
         instruction = self._pixel_text("ESC: TITLE SCREEN", (35, 10, 12), scale=2, size=9)
         self.screen.blit(instruction, instruction.get_rect(center=(WIDTH // 2, int(HEIGHT * 0.78))))
 
+    # 퀴즈 패널, 영역·난이도, 남은 시간과 선택지를 표시한다.
     def draw_quiz(self, quiz):
+        # 퀴즈가 열려 있지 않으면 화면을 덮지 않는다.
         if not quiz.active:
             return
         q = quiz.enemy.question
@@ -206,6 +251,7 @@ class Renderer:
         level_name = {"easy": "쉬움", "medium": "보통", "hard": "도전", "expert": "최상"}.get(q.get("difficulty"), "수학")
         domain = q.get("domain", "수학")
         domain_icon = self.domain_sprites.get(domain)
+        # 사용할 영역 아이콘이 있으면 문제 제목 옆에 표시한다.
         if domain_icon:
             icon = pygame.transform.scale(domain_icon, (24, 24))
             self.screen.blit(icon, (44, 36))
@@ -221,10 +267,12 @@ class Renderer:
 
         choices = q.get("choices", [])
         left, width, top, row_h = 45, WIDTH - 90, 125, min(70, 380 // max(1, len(choices)))
+        # 보기 행을 그리고 현재 선택된 보기를 강조한다.
         for i, choice in enumerate(choices):
             option = pygame.Rect(left, top + i * row_h, width, row_h - 8)
             selected = i == quiz.selected
             pygame.draw.rect(self.screen, (190, 220, 255) if selected else GRAY, option, border_radius=5)
+            # 선택된 보기에는 테두리를 그려 현재 위치를 강조한다.
             if selected:
                 pygame.draw.rect(self.screen, (55, 110, 220), option, 2, border_radius=5)
             label = str(choice)

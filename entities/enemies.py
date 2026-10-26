@@ -5,6 +5,7 @@ import pygame
 from systems.quiz import get_random_question
 
 
+# 몹별 난이도·영역·외형·능력치와 보상 데이터를 정의한다.
 ENEMY_TYPES = {
     "easy_arithmetic": {"name": "계산 슬라임", "difficulty": "easy", "domain": "산술",
                         "mark": "＋", "sprite_index": 0, "color": (219, 79, 77),
@@ -44,13 +45,13 @@ ENEMY_TYPES = {
                           "size": (46, 62), "wrong_sound": "mob1_wrong", "hp": 5, "score": 400},
 }
 
+# 난이도 키를 몹 종류 목록으로 바꿔 월드 생성 시 선택에 사용한다.
 ENEMY_TYPES_BY_DIFFICULTY = {
     level: [key for key, data in ENEMY_TYPES.items() if data["difficulty"] == level]
     for level in ("easy", "medium", "hard", "expert")
 }
 
-# mob.jpg is split into four sprites; keep its visual progression aligned
-# with the four question difficulty tiers.
+# 4분할 몹 스프라이트의 인덱스를 문제 난이도와 연결한다.
 DIFFICULTY_SPRITE_INDEX = {
     "easy": 0,
     "medium": 1,
@@ -59,7 +60,9 @@ DIFFICULTY_SPRITE_INDEX = {
 }
 
 
+# 몹의 외형·능력·문제 상태를 하나의 객체로 보관한다.
 class Enemy:
+    # 몹 종류에 맞는 크기, 난이도, 영역별 첫 문제를 설정한다.
     def __init__(self, x, ground_y, enemy_type="easy_arithmetic"):
         self.enemy_type = enemy_type
         self.data = ENEMY_TYPES[enemy_type].copy()
@@ -71,8 +74,10 @@ class Enemy:
         self.wrong_until = 0
         self.question = get_random_question(self.data["difficulty"], self.data["domain"])
 
+    # 정답 피해를 적용하고 처치 여부를 반환한 뒤 다음 문제를 준비한다.
     def defeat(self):
         self.hp -= 1
+        # 체력이 0 이하가 되면 몹을 비활성화한다.
         if self.hp <= 0:
             self.active = False
             return True

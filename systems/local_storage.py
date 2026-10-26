@@ -67,6 +67,7 @@ class LocalStorage:
             # 기록 시각이 숫자로 바뀌지 않으면 기본 시각을 적용한다.
             try:
                 played_at = float(row.get("played_at", 0) or 0)
+            # 시각 값이 숫자가 아니면 0으로 정규화한다.
             except (TypeError, ValueError, OverflowError):
                 played_at = 0.0
             normalized = {"nickname": row["nickname"].strip()[:24], "score": row["score"],
@@ -104,16 +105,19 @@ class LocalStorage:
         # 프로필 번호를 정수로 읽고 비정상 값은 1부터 다시 시작한다.
         try:
             next_number = max(1, int(profile.get("next_player_number", 1)))
+        # 잘못된 번호는 기본값으로 복구한다.
         except (TypeError, ValueError):
             next_number = 1
         # 기존 랭킹에 사용된 가장 큰 플레이어 번호를 확인한다.
         for row in rankings:
             match = re.fullmatch(r"player-(\d+)", row["nickname"], re.IGNORECASE)
+            # 자동 발급 닉네임이면 다음 번호를 기존 번호보다 크게 맞춘다.
             if match:
                 next_number = max(next_number, int(match.group(1)) + 1)
         # 저장 데이터의 닉네임 번호도 다음 자동 번호에 반영한다.
         if isinstance(save, dict):
             match = re.fullmatch(r"player-(\d+)", str(save.get("nickname", "")), re.IGNORECASE)
+            # 저장 닉네임 번호도 다음 자동 번호 후보에 반영한다.
             if match:
                 next_number = max(next_number, int(match.group(1)) + 1)
         normalized_profile = {**profile, "next_player_number": next_number}
@@ -127,6 +131,7 @@ class LocalStorage:
         # 저장된 다음 번호를 읽고 형식 오류면 기본 번호를 쓴다.
         try:
             number = max(1, int(profile.get("next_player_number", 1)))
+        # 프로필 형식이 예상과 다르면 첫 번호부터 시작한다.
         except (AttributeError, TypeError, ValueError):
             number = 1
         profile = profile if isinstance(profile, dict) else {}
