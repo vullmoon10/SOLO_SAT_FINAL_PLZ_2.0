@@ -1,0 +1,7 @@
+[
+  {"id":"math_001","subject":"수학","difficulty":"easy","q":"3 + 8 = ?","choices":["21","12","10","11"],"answer":3,"time":30},
+  {"id":"math_002","subject":"수학","difficulty":"easy","q":"82 - 36 = ?","choices":["56","54","46","36"],"answer":2,"time":30},
+  {"id":"math_003","subject":"수학","difficulty":"medium","q":"어떤 수에서 128을 뺐더니 275가 되었습니다.","choices":["393","413","403","147"],"answer":0,"time":45},
+  {"id":"math_004","subject":"수학","difficulty":"easy","q":"7 + 8 = ?","choices":["16","25","15","14"],"answer":2,"time":25},
+  {"id":"math_005","subject":"수학","difficulty":"medium","q":"어떤 수에 248을 더했더니 315가 되었습니다.","choices":["811","67","563","801"],"answer":1,"time":45}
+]
