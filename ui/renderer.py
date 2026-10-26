@@ -9,50 +9,21 @@ from ui.hud import draw_hud
 class Renderer:
     def __init__(self, screen):
         self.screen = screen
+        self.enemy_sprites = self._load_enemy_sprites()
+        self.alert_font = pygame.font.SysFont("malgungothic", 22, bold=True)
+        self.enemy_mark_font = pygame.font.SysFont("malgungothic", 10, bold=True)
+
+    @staticmethod
+    def _load_enemy_sprites():
         image_dir = Path(__file__).resolve().parents[1] / "assets" / "images"
-        self.enemy_sprites = {}
-        for filename in ("mob11.jpg", "mob2.jpg"):
-            path = image_dir / filename
-            if path.is_file():
-                try:
-                    sprite = pygame.image.load(str(path)).convert_alpha()
-                    background = pygame.mask.from_threshold(
-                        sprite, (255, 255, 255), (45, 45, 45, 255)
-                    ).connected_component((0, 0))
-                    for y in range(sprite.get_height()):
-                        for x in range(sprite.get_width()):
-                            if not background.get_at((x, y)):
-                                continue
-                            red, green, blue, _ = sprite.get_at((x, y))
-                            alpha = 255 - min(red, green, blue)
-                            if alpha < 32:
-                                sprite.set_at((x, y), (0, 0, 0, 0))
-                                continue
-                            # Remove the white matte from edge pixels before making them translucent.
-                            matte = 255 - alpha
-                            red = max(0, min(255, round((red - matte) * 255 / alpha)))
-                            green = max(0, min(255, round((green - matte) * 255 / alpha)))
-                            blue = max(0, min(255, round((blue - matte) * 255 / alpha)))
-                            sprite.set_at((x, y), (red, green, blue, alpha))
-                    self.enemy_sprites[filename] = sprite
-                except (pygame.error, TypeError, ValueError, AttributeError):
-                    pass
-        self.wrong_overlay = None
-        wrong_path = image_dir / "mob2-오답.jpg"
-        if wrong_path.is_file():
+        sprites = []
+        for index in range(1, 5):
+            image_path = image_dir / f"mob_{index}.png"
             try:
-                source = pygame.image.load(str(wrong_path)).convert()
-                source = source.subsurface(pygame.Rect(0, 46, source.get_width(), source.get_height() - 90))
-                keyed = pygame.Surface(source.get_size(), pygame.SRCALPHA)
-                keyed.blit(source, (0, 0))
-                for y in range(keyed.get_height()):
-                    for x in range(keyed.get_width()):
-                        red, green, blue, _ = keyed.get_at((x, y))
-                        if green > 100 and green > red * 1.35 and green > blue * 1.25:
-                            keyed.set_at((x, y), (red, green, blue, 0))
-                self.wrong_overlay = pygame.transform.smoothscale(keyed, (120, 90))
-            except (pygame.error, ValueError):
-                pass
+                sprites.append(pygame.image.load(str(image_path)).convert_alpha())
+            except (pygame.error, OSError):
+                break
+        return sprites
 
     def draw_text(self, text, x, y, color=DARK, font=FONT):
         self.screen.blit(font.render(str(text), True, color), (x, y))
@@ -100,23 +71,34 @@ class Renderer:
             rect = enemy.rect.move(-camera_x, 0)
             if rect.right < 0 or rect.left > WIDTH:
                 continue
-            sprite = self.enemy_sprites.get(enemy.data.get("sprite"))
-            if sprite:
-                phase = pygame.time.get_ticks() * 0.004 + enemy.rect.x * 0.035
-                bob = math.sin(phase) * 2.5
-                stretch = 1.0 + math.sin(phase * 2) * 0.035
-                animated_size = (rect.width, max(1, int(rect.height * stretch)))
-                animated = pygame.transform.smoothscale(sprite, animated_size)
-                animated = pygame.transform.rotozoom(animated, math.sin(phase) * 3, 1)
-                animated_rect = animated.get_rect(center=(rect.centerx, int(rect.centery + bob)))
-                self.screen.blit(animated, animated_rect)
+            phase = pygame.time.get_ticks() * 0.004 + enemy.rect.x * 0.035
+            bob = math.sin(phase) * 2.5
+            stretch = 1.0 + math.sin(phase * 2) * 0.035
+            sprite_index = enemy.data["sprite_index"]
+            if sprite_index < len(self.enemy_sprites):
+                source = self.enemy_sprites[sprite_index]
+                fit = min(rect.width / source.get_width(), rect.height / source.get_height())
+                sprite_width = max(1, round(source.get_width() * fit))
+                sprite_height = max(1, round(source.get_height() * fit * stretch))
+                animated = pygame.transform.scale(source, (sprite_width, sprite_height))
+                badge = pygame.Surface((sprite_width, sprite_height), pygame.SRCALPHA)
+                badge_y = int(sprite_height * .72)
+                pygame.draw.circle(badge, enemy.data["color"], (sprite_width // 2, badge_y), 8)
+                pygame.draw.circle(badge, DARK, (sprite_width // 2, badge_y), 8, 1)
+                mark = self.enemy_mark_font.render(enemy.data["mark"], True, WHITE)
+                badge.blit(mark, mark.get_rect(center=(sprite_width // 2, badge_y)))
+                animated.blit(badge, (0, 0))
             else:
-                pygame.draw.rect(self.screen, enemy.data["color"], rect, border_radius=4)
-                eye_y = rect.y + rect.height // 3
-                pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width // 3, eye_y), 4)
-                pygame.draw.circle(self.screen, WHITE, (rect.x + 2 * rect.width // 3, eye_y), 4)
-            if enemy.enemy_type == "advanced" and enemy.wrong_until > pygame.time.get_ticks() and self.wrong_overlay:
-                self.screen.blit(self.wrong_overlay, self.wrong_overlay.get_rect(center=rect.center))
+                animated = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+                pygame.draw.ellipse(animated, enemy.data["color"], animated.get_rect())
+                pygame.draw.ellipse(animated, DARK, animated.get_rect(), 2)
+            animated = pygame.transform.rotozoom(animated, math.sin(phase) * 3, 1)
+            animated_rect = animated.get_rect(center=(rect.centerx, int(rect.centery + bob)))
+            self.screen.blit(animated, animated_rect)
+            if enemy.wrong_until > pygame.time.get_ticks():
+                alert = self.alert_font.render("!", True, WHITE)
+                pygame.draw.circle(self.screen, (220, 45, 65), (rect.centerx, rect.top - 5), 11)
+                self.screen.blit(alert, alert.get_rect(center=(rect.centerx, rect.top - 6)))
 
     def draw_start_countdown(self, seconds):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -180,7 +162,9 @@ class Renderer:
         self.screen.blit(overlay, (0, 0))
         panel = pygame.Rect(25, 28, WIDTH - 50, HEIGHT - 56)
         pygame.draw.rect(self.screen, CREAM, panel, border_radius=8)
-        self.draw_text(q.get("subject", "과목"), 45, 40, GRASS, SMALL)
+        level_name = {"easy": "쉬움", "medium": "보통", "hard": "도전", "expert": "최상"}.get(q.get("difficulty"), "수학")
+        self.draw_text(f"{quiz.enemy.data['name']} · {q.get('domain', '수학')} · {level_name}",
+                       45, 40, GRASS, SMALL)
         self.draw_text(q.get("q", ""), 45, 65, DARK, FONT)
         remaining = quiz.remaining()
         self.draw_text(f"{remaining:.1f}s", 905, 40, RED if remaining < 10 else DARK, SMALL)

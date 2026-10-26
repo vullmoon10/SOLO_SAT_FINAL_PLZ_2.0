@@ -4,8 +4,8 @@ from settings import WRONG_DAMAGE, QUESTION_TIME
 from systems.question_generator import generate_math_question
 
 
-def get_random_question(difficulty=None):
-    return generate_math_question(difficulty)
+def get_random_question(difficulty=None, domain=None):
+    return generate_math_question(difficulty, domain)
 
 
 class Quiz:

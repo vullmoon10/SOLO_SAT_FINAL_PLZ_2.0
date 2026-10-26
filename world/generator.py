@@ -2,7 +2,7 @@ import random
 import pygame
 from settings import WIDTH, HEIGHT, GROUND_Y
 from world.terrain import Terrain
-from entities.enemies import Enemy
+from entities.enemies import Enemy, ENEMY_TYPES_BY_DIFFICULTY
 
 
 class World(Terrain):
@@ -39,12 +39,15 @@ class World(Terrain):
         self.world_end = x
 
     def add_enemy(self, x, ground_y):
-        if x >= 3500 and self.rng.random() < 0.2:
-            enemy_type = "challenge"
+        if x >= 6500 and self.rng.random() < 0.18:
+            difficulty = "expert"
+        elif x >= 3500 and self.rng.random() < 0.23:
+            difficulty = "hard"
         elif x >= 1000 and self.rng.random() < 0.5:
-            enemy_type = "advanced"
+            difficulty = "medium"
         else:
-            enemy_type = "basic"
+            difficulty = "easy"
+        enemy_type = self.rng.choice(ENEMY_TYPES_BY_DIFFICULTY[difficulty])
         self.enemies.append(Enemy(x, ground_y, enemy_type))
 
     def update_generation(self, player_x):
