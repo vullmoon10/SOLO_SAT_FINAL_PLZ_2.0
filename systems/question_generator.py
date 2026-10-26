@@ -218,7 +218,7 @@ def _expert_question(kind, domain):
         distractors.remove(quadrant)
         distractors.append("좌표축 위")
     return _multiple_choice(
-        f"점 A({x}, {y})를 x축 방향으로 {dx}, y축 방향으로 −{dy}만큼 옮겼다. 옮긴 점은 어느 사분면에 있나요?",
+        f"점 A({x}, {y})를 x축 방향으로 {dx}, y축 방향으로 −{dy}만큼 옮겼다. 옮긴 점은 어느 사분면 또는 좌표축 위에 있나요?",
         quadrant, distractors, "expert", domain)
 
 

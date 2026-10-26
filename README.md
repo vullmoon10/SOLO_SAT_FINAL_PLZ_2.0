@@ -4,7 +4,7 @@ Pygame으로 만든 수학 학습·전투 게임입니다. 네트워크나 서�
 
 ## 실행
 
-Python 3.10 이상과 `pygame`이 필요합니다.
+Python 3.10 이상과 `pygame-ce`가 필요합니다. `pygame-ce`는 코드에서 기존 `pygame` 모듈 이름으로 가져오므로 게임 코드는 그대로 사용할 수 있습니다.
 
 ```bash
 python -m pip install -r requirements.txt
