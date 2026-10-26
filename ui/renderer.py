@@ -4,7 +4,6 @@ import math
 import pygame
 from settings import *
 from ui.hud import draw_hud
-from systems.quiz import image_surface
 
 
 class Renderer:
@@ -190,17 +189,8 @@ class Renderer:
         ratio = remaining / max(1, quiz.duration)
         pygame.draw.rect(self.screen, GRASS if ratio > .3 else (220, 130, 50), (bar.x, bar.y, int(bar.width * ratio), bar.height))
 
-        image = image_surface(q)
         choices = q.get("choices", [])
-        if image:
-            target = pygame.Rect(45, 118, 520, 420)
-            scale = min(target.width / image.get_width(), target.height / image.get_height())
-            size = (max(1, int(image.get_width() * scale)), max(1, int(image.get_height() * scale)))
-            rendered = pygame.transform.smoothscale(image, size)
-            self.screen.blit(rendered, rendered.get_rect(center=target.center))
-            left, width, top, row_h = 600, 350, 130, 70
-        else:
-            left, width, top, row_h = 45, WIDTH - 90, 125, min(70, 380 // max(1, len(choices)))
+        left, width, top, row_h = 45, WIDTH - 90, 125, min(70, 380 // max(1, len(choices)))
         for i, choice in enumerate(choices):
             option = pygame.Rect(left, top + i * row_h, width, row_h - 8)
             selected = i == quiz.selected
@@ -209,4 +199,4 @@ class Renderer:
                 pygame.draw.rect(self.screen, (55, 110, 220), option, 2, border_radius=5)
             label = str(choice)
             self.draw_text(f"{i + 1}. {label}", option.x + 12, option.y + 8, DARK, SMALL)
-        self.draw_text("↑/↓ 선택 · 1~5 또는 Enter 제출 · ESC 닫기", 45, 545, DARK, SMALL)
+        self.draw_text("↑/↓ 선택 · 1~4 또는 Enter 제출 · ESC 닫기", 45, 545, DARK, SMALL)

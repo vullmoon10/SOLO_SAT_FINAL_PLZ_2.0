@@ -1,73 +1,11 @@
-import json
-import random
-from io import BytesIO
-from pathlib import Path
-
 import pygame
+
 from settings import WRONG_DAMAGE, QUESTION_TIME
+from systems.question_generator import generate_math_question
 
 
-_DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "questions.json"
-try:
-    QUESTIONS = json.loads(_DATA_PATH.read_text(encoding="utf-8"))
-except (OSError, json.JSONDecodeError):
-    QUESTIONS = []
-
-_REMOTE_QUESTIONS = []
-_QUESTION_CLIENT = None
-_SELECTED_SUBJECT = None
-_IMAGE_CACHE = {}
-_LOCAL_MODE = False
-_LOCAL_DECK = []
-
-
-def set_question_source(subject, client, questions, local_mode=False):
-    global _REMOTE_QUESTIONS, _QUESTION_CLIENT, _SELECTED_SUBJECT, _IMAGE_CACHE, _LOCAL_MODE, _LOCAL_DECK
-    _SELECTED_SUBJECT = subject
-    _QUESTION_CLIENT = client
-    _REMOTE_QUESTIONS = list(questions or [])
-    _IMAGE_CACHE = {}
-    _LOCAL_MODE = local_mode
-    _LOCAL_DECK = []
-
-
-def get_random_question(difficulty=None, subject=None):
-    global _LOCAL_DECK
-    subject = subject or _SELECTED_SUBJECT
-    if _LOCAL_MODE:
-        pool = [q for q in QUESTIONS if q.get("subject") == subject]
-        if not pool:
-            return {"subject": subject or "과목 미설정", "difficulty": "easy",
-                    "q": "로컬 문항이 없습니다.", "choices": ["①", "②", "③", "④"],
-                    "answer": 0, "time": QUESTION_TIME}
-        if not _LOCAL_DECK:
-            _LOCAL_DECK = list(pool)
-            random.shuffle(_LOCAL_DECK)
-        return dict(_LOCAL_DECK.pop())
-    pool = [q for q in _REMOTE_QUESTIONS if not subject or q.get("subject") == subject]
-    if pool:
-        question = dict(random.choice(pool))
-        question["time"] = int(question.get("time", QUESTION_TIME))
-        question["difficulty"] = difficulty or "easy"
-        question["_client"] = _QUESTION_CLIENT
-        if _QUESTION_CLIENT and question.get("id"):
-            qid = question["id"]
-            if qid not in _IMAGE_CACHE:
-                try:
-                    _IMAGE_CACHE[qid] = _QUESTION_CLIENT.page_image(qid)
-                except RuntimeError:
-                    _IMAGE_CACHE[qid] = None
-            question["page_image_bytes"] = _IMAGE_CACHE[qid]
-        return question
-    local = [q for q in QUESTIONS if (not subject or q.get("subject") == subject)
-             and (difficulty is None or q.get("difficulty") == difficulty)]
-    if not local:
-        local = [q for q in QUESTIONS if not subject or q.get("subject") == subject]
-    if local:
-        return random.choice(local)
-    return {"subject": subject or "과목 미설정", "difficulty": "easy",
-            "q": "관리자 문항 등록을 기다리고 있습니다.", "choices": ["①", "②", "③", "④", "⑤"],
-            "answer": 0, "time": QUESTION_TIME}
+def get_random_question(difficulty=None):
+    return generate_math_question(difficulty)
 
 
 class Quiz:
@@ -101,13 +39,7 @@ class Quiz:
         if not 0 <= index < len(question["choices"]):
             return None
         enemy = self.enemy
-        if "answer" in question:
-            correct = index == int(question["answer"])
-        else:
-            try:
-                correct = question["_client"].check_answer(question["id"], index)
-            except (KeyError, RuntimeError, AttributeError):
-                correct = False
+        correct = index == int(question["answer"])
         if correct:
             score = enemy.data["score"]
             result = {"correct": True, "damage": 0, "score": score,
@@ -132,16 +64,5 @@ class Quiz:
             self.enemy = None
             return {"correct": False, "damage": damage, "score": 0,
                     "wrong_sound": enemy.data.get("wrong_sound", "damage"),
-                    "enemy": enemy,
-                    "defeated": False, "message": "시간 초과!"}
-        return None
-
-
-def image_surface(question):
-    raw = question.get("page_image_bytes")
-    if not raw:
-        return None
-    try:
-        return pygame.image.load(BytesIO(raw)).convert()
-    except (pygame.error, TypeError):
+                    "enemy": enemy, "defeated": False, "message": "시간 초과!"}
         return None

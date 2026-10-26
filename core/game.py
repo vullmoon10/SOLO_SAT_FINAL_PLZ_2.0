@@ -11,15 +11,14 @@ from core.display import toggle_fullscreen
 
 
 class Game:
-    def __init__(self, screen, client=None, session=None, resume_state=None, local_storage=None, audio=None, cheats=None):
+    def __init__(self, screen, session=None, resume_state=None, local_storage=None, audio=None, cheats=None):
         self.screen = screen
         self.clock = pygame.time.Clock()
-        self.client = client
         self.local_storage = local_storage
         self.audio = audio
         self.session = session or {}
         self.subject = self.session.get("subject", "수학")
-        self.cheats = cheats or {}
+        self.cheats = choose_cheat() if cheats is None else cheats
         self.player = Player(cheats=self.cheats)
         seed = (resume_state or {}).get("world_seed")
         self.world = World(seed=seed)
@@ -53,8 +52,6 @@ class Game:
         self.countdown_until = pygame.time.get_ticks() + 5000
         self.damage_cooldown_until = 0
         self.last_saved = pygame.time.get_ticks()
-        self.cheat_request_id = None
-        self.last_cheat_poll = 0
         if self.audio:
             self.audio.play_game_music()
 
@@ -79,41 +76,6 @@ class Game:
                     self.local_storage.record_score(nickname, self.score, self.subject)
             self.last_saved = pygame.time.get_ticks()
             return
-        if not self.client or not self.session.get("player_id"):
-            return
-        state = {"nickname": self.session.get("nickname", ""), "subject": self.subject,
-                 "score": self.score, "hp": self.hp, "world_seed": self.world.seed,
-                 "player_x": self.player.rect.x, "player_y": self.player.rect.y,
-                 "camera_x": self.camera_x,
-                 "enemy_states": {str(enemy.rect.x): {"hp": enemy.hp, "active": enemy.active}
-                                  for enemy in self.world.enemies}}
-        try:
-            if finished:
-                self.client.finish(self.session["player_id"], self.score, self.subject)
-            else:
-                self.client.save(self.session["player_id"], state)
-            self.last_saved = pygame.time.get_ticks()
-        except RuntimeError as exc:
-            self.show_message(str(exc))
-
-    def poll_cheat(self):
-        if not self.cheat_request_id or pygame.time.get_ticks() - self.last_cheat_poll < 2500:
-            return
-        self.last_cheat_poll = pygame.time.get_ticks()
-        try:
-            status = self.client.cheat_status(self.cheat_request_id)
-        except (RuntimeError, AttributeError):
-            return
-        if status.get("status") == "approved":
-            self.cheats = choose_cheat("5")
-            self.player.cheats = self.cheats
-            self.quiz.cheats = self.cheats
-            self.show_message("관리자가 치트를 승인했습니다.")
-            self.cheat_request_id = None
-        elif status.get("status") in ("denied", "missing"):
-            self.show_message("치트 요청이 승인되지 않았습니다.")
-            self.cheat_request_id = None
-
     def apply_quiz_result(self, result):
         if result is None:
             return
@@ -181,16 +143,6 @@ class Game:
                 self.player.jump()
             elif event.key == pygame.K_e:
                 self.open_nearby_enemy()
-            elif event.key == pygame.K_F2 and self.client and self.session.get("player_id"):
-                if self.cheat_request_id:
-                    self.show_message("치트 승인 대기 중입니다.")
-                else:
-                    try:
-                        response = self.client.request_cheat(self.session["player_id"], "5")
-                        self.cheat_request_id = response["request_id"]
-                        self.show_message("관리자에게 치트 승인을 요청했습니다.")
-                    except RuntimeError as exc:
-                        self.show_message(str(exc))
 
     def update(self):
         if self.game_over or self.paused or self.quiz.active or pygame.time.get_ticks() < self.countdown_until:
@@ -248,7 +200,6 @@ class Game:
             self.update()
             if not self.paused:
                 self.apply_quiz_result(self.quiz.check_timeout())
-            self.poll_cheat()
             if pygame.time.get_ticks() - self.last_saved >= 10_000:
                 self.save_state()
             self.draw()

@@ -4,9 +4,8 @@ from core.display import toggle_fullscreen
 
 
 class Menu:
-    def __init__(self, screen, local_mode=False, audio=None):
+    def __init__(self, screen, audio=None):
         self.screen = screen
-        self.local_mode = local_mode
         self.audio = audio
         self.clock = pygame.time.Clock()
         self.page = "main"
@@ -64,13 +63,8 @@ class Menu:
         self._text("게임 불러오기", (500, 112), self.title_font, WHITE)
         self._text("저장 기록을 선택하세요", (500, 166), self.font, (211, 220, 230))
         self.buttons = []
-        if self.local_mode:
-            self._button("LOCAL SAVE", 275, 0, "이 컴퓨터의 자동 저장")
-            self._button("뒤로", 440, 1)
-        else:
-            for i, slot in enumerate(("SLOT 1", "SLOT 2", "SLOT 3")):
-                self._button(slot, 230 + i * 75, i, "서버의 저장 기록")
-            self._button("뒤로", 465, 3)
+        self._button("LOCAL SAVE", 275, 0, "이 컴퓨터의 자동 저장")
+        self._button("뒤로", 440, 1)
 
     def draw(self):
         self._background()
@@ -90,7 +84,7 @@ class Menu:
             elif index == 3:
                 return "quit"
             return None
-        back_index = 1 if self.local_mode else 3
+        back_index = 1
         if index == back_index:
             self.page, self.selected = "main", 0
             return None
@@ -116,7 +110,7 @@ class Menu:
                     elif event.key in (pygame.K_UP, pygame.K_w):
                         self.selected = max(0, self.selected - 1)
                     elif event.key in (pygame.K_DOWN, pygame.K_s):
-                        max_index = 3 if self.page == "main" else (1 if self.local_mode else 3)
+                        max_index = 3 if self.page == "main" else 1
                         self.selected = min(max_index, self.selected + 1)
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         if self.audio:
