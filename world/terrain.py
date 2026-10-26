@@ -9,4 +9,7 @@ class Terrain:  # 월드 지형 요소 목록을 보관
         self.ladders = []  # 생성된 사다리 목록
         self.decorations = []  # 지형 장식 목록
         self.enemies = []  # 적 목록
+        self.items = []  # 획득 가능한 아이템 목록
+        self.moving_platforms = []  # 왕복 이동 발판
+        self.trash_mobs = []  # 근접 공격으로 처치 가능한 잡몹
         self.world_end = 0  # 생성된 월드의 마지막 좌표

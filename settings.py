@@ -5,7 +5,7 @@ import os
 
 WIDTH, HEIGHT, FPS = 1000, 600, 60  # 화면 크기와 목표 초당 프레임 수
 TITLE = "SOLO SAT"  # 창 제목
-MOVE_SPEED, GRAVITY, JUMP_POWER, MAX_FALL_SPEED = 5, 0.5, -10, 10  # 이동·중력·점프 물리값
+MOVE_SPEED, GRAVITY, JUMP_POWER = 5, 0.5, -10  # 이동·중력·점프 물리값
 PLAYER_WIDTH, PLAYER_HEIGHT = 32, 40  # 플레이어 충돌 상자의 너비와 높이
 MAX_HP, CORRECT_SCORE, WRONG_DAMAGE, QUESTION_TIME = 100, 100, 10, 30  # 체력·점수·피해·문제 제한 시간
 SKY = (126, 196, 235)  # 하늘색
@@ -37,7 +37,8 @@ def choose_cheat(cheat_code=None):  # 환경 변수로 지정한 치트 설정�
         "2": {"superspeed": True},
         "3": {"superjump": True},
         "4": {"superspeed": True, "superjump": True},
-        "5": {"no_damage": True, "superspeed": True, "superjump": True},
+        "5": {"no_damage": True, "superspeed": True, "superjump": True,
+              "infinite_map": True},
     }
     cheat_code = (cheat_code if cheat_code is not None else os.getenv("SOLO_SAT_CHEAT", "")).strip()
     return cheats.get(cheat_code, {})  # 유효한 번호의 치트 또는 빈 설정을 반환

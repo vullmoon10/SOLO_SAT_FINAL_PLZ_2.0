@@ -1,7 +1,7 @@
 """플레이어의 이동, 점프, 사다리 오르기와 충돌 상태를 관리한다."""
 
 import pygame
-from settings import MOVE_SPEED, GRAVITY, JUMP_POWER, MAX_FALL_SPEED, GROUND_Y, PLAYER_WIDTH, PLAYER_HEIGHT
+from settings import MOVE_SPEED, GRAVITY, JUMP_POWER, GROUND_Y, PLAYER_WIDTH, PLAYER_HEIGHT
 
 
 # 플레이어의 충돌 상자와 입력에 따른 이동 상태를 관리한다.
@@ -12,14 +12,41 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
         self.vy = 0.0  # 세로 속도
         self.on_ground = False  # 지면 착지 여부
         self.climbing = False  # 사다리 등반 여부
-        self.cheats = cheats or {}  # 이동에 적용할 치트 설정
+        self.facing = 1  # 오른쪽 방향으로 시작
+        self.horizontal_velocity = 0.0  # 방향키와 A/D 입력의 가속 속도
+        self.speed_boost_until = 0  # 속도 아이템 종료 시각
+        self.jump_boost_until = 0  # 점프 아이템 종료 시각
+        self.swing_until = 0  # 막대기 휘두르기 애니메이션 종료 시각
+        self.attack_cooldown_until = 0  # 다음 공격 가능 시각
+        self.stick_mode = "normal"  # 막대기 공격 연출 종류
+        self.special_effect_until = 0  # 특수 공격 효과 종료 시각
+        self.cheats = cheats if cheats is not None else {}  # 이동에 적용할 치트 설정
 
     # 입력, 중력, 사다리 이동과 지형 착지를 한 프레임 계산한다.
     def update(self, keys, world):  # 입력·중력·지형 충돌을 반영해 위치를 갱신
-        speed = 500 if self.cheats.get("superspeed") else MOVE_SPEED  # 치트 적용 이동 속도
-        dx = int(bool(keys[pygame.K_d] or keys[pygame.K_RIGHT])) * speed  # 오른쪽 입력 이동량
-        dx -= int(bool(keys[pygame.K_a] or keys[pygame.K_LEFT])) * speed  # 왼쪽 입력 이동량을 차감
+        now = pygame.time.get_ticks()
+        if self.cheats.get("superspeed"):
+            max_speed = 100
+        elif now < self.speed_boost_until:
+            max_speed = MOVE_SPEED * 2
+        else:
+            max_speed = MOVE_SPEED
+        horizontal = int(bool(keys[pygame.K_d] or keys[pygame.K_RIGHT])) - int(bool(keys[pygame.K_a] or keys[pygame.K_LEFT]))
+        if horizontal:
+            self.facing = 1 if horizontal > 0 else -1
+            acceleration = max(0.6, max_speed * 0.06)
+            if self.horizontal_velocity * horizontal < 0:
+                self.horizontal_velocity += horizontal * acceleration * 2
+            else:
+                self.horizontal_velocity += horizontal * acceleration
+            self.horizontal_velocity = max(-max_speed, min(max_speed, self.horizontal_velocity))
+        else:
+            self.horizontal_velocity *= 0.82
+            if abs(self.horizontal_velocity) < 0.25:
+                self.horizontal_velocity = 0
+        dx = round(self.horizontal_velocity)
         self.rect.x += dx  # 입력 이동량을 가로 위치에 적용
+        speed = max_speed  # 사다리 이동에는 현재 모드의 최대 속도를 사용
 
         # 사다리는 플레이어의 발 위치까지 포함해 판정하고, 사다리 밖으로 나가면 중력을 복구
         # 현재 충돌 범위와 겹치는 사다리를 찾아 등반 가능 여부를 판정한다.
@@ -40,14 +67,15 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
             self.vy = 0  # 등반 중 중력을 정지
         # 사다리를 타지 않을 때에는 낙하 중력을 적용한다.
         else:
-            self.vy = min(self.vy + GRAVITY, MAX_FALL_SPEED)  # 중력을 반영하고 낙하 속도를 제한
+            self.vy += GRAVITY  # 낙하 속도 상한 없이 중력을 계속 반영
             self.rect.y += int(self.vy)  # 세로 속도를 위치에 적용
 
         self.on_ground = False  # 이번 프레임 착지 여부를 다시 판정
         # 낙하 중인 플레이어가 지면이나 발판을 위에서 통과했는지 확인한다.
         if not self.climbing and self.vy >= 0:  # 하강 중일 때 지면·발판 착지를 판정
             # 모든 지면과 발판 표면에 대해 착지 여부를 검사한다.
-            for surface in world.ground_segments + world.platforms:
+            surfaces = world.ground_segments + world.platforms + [platform.rect for platform in world.moving_platforms]
+            for surface in surfaces:
                 overlap = self.rect.right > surface.left and self.rect.left < surface.right  # 수평 충돌 범위 중첩 여부
                 crossed_top = previous.bottom <= surface.top and self.rect.bottom >= surface.top  # 위에서 표면을 통과했는지 여부
                 # 사다리 하강 후 발판 내부 착지 판정
@@ -60,15 +88,24 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
                     self.on_ground = True  # 점프 가능한 착지 상태로 설정
                     break
 
-        # 월드 가장자리에서 플레이어가 무한히 화면 밖으로 걸어나가지 않게 
-        self.rect.x = max(0, self.rect.x)  # 월드 시작점 왼쪽으로 이동하지 못하게 
+        # 무한맵은 왼쪽 생성 경계만 지키고, 일반 코스는 양 끝에서 멈춘다.
+        self.rect.x = max(world.active_start, self.rect.x)
+        self.rect.x = min(world.active_end - self.rect.width, self.rect.x)
+        if self.rect.left == world.active_start and self.horizontal_velocity < 0:
+            self.horizontal_velocity = 0
+        if self.rect.right >= world.active_end and self.horizontal_velocity > 0:
+            self.horizontal_velocity = 0
 
     # 지면에 착지한 경우에만 점프 속도를 적용한다.
     def jump(self):  # 지면에 있을 때 점프를 시작
-        if self.on_ground:  # 공중 점프를 막고 점프 속도를 적용
-            self.vy = -20 if self.cheats.get("superjump") else JUMP_POWER  # 치트 설정에 따른 점프 속도
-            self.on_ground = False  # 점프 직후 지면 상태를 해제
-            self.climbing = False  # 점프 시 등반 상태를 해제
+        if self.cheats.get("superjump"):
+            self.vy = -20
+        elif pygame.time.get_ticks() < self.jump_boost_until:
+            self.vy = -18
+        else:
+            self.vy = JUMP_POWER
+        self.on_ground = False  # 점프 직후 지면 상태를 해제
+        self.climbing = False  # 점프 시 등반 상태를 해제
 
     # 추락 후 위치와 수직 이동 상태를 시작점으로 초기화한다.
     def reset_position(self):  # 플레이어 위치·상태 초기화

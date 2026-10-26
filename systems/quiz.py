@@ -21,7 +21,7 @@ class Quiz:
         self.selected = 0
         self.feedback = ""
         self.feedback_until = 0
-        self.cheats = cheats or {}
+        self.cheats = cheats if cheats is not None else {}
 
     @property
     # 현재 문제를 풀 몹이 있는지 상태를 반환한다.

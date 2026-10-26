@@ -63,7 +63,7 @@ DIFFICULTY_SPRITE_INDEX = {
 # 몹의 외형·능력·문제 상태를 하나의 객체로 보관한다.
 class Enemy:
     # 몹 종류에 맞는 크기, 난이도, 영역별 첫 문제를 설정한다.
-    def __init__(self, x, ground_y, enemy_type="easy_arithmetic"):
+    def __init__(self, x, ground_y, enemy_type="easy_arithmetic", patrol_bounds=None):
         self.enemy_type = enemy_type
         self.data = ENEMY_TYPES[enemy_type].copy()
         self.data["sprite_index"] = DIFFICULTY_SPRITE_INDEX[self.data["difficulty"]]
@@ -72,14 +72,28 @@ class Enemy:
         self.hp = self.data["hp"]
         self.active = True
         self.wrong_until = 0
+        self.spawn_x = x
+        self.patrol_left, self.patrol_right = patrol_bounds or (x - 55, x + 55)
+        self.patrol_right = max(self.patrol_left, self.patrol_right - width)
+        self.direction = 1
+        self.move_speed = 1.2
         self.question = get_random_question(self.data["difficulty"], self.data["domain"])
 
-    # 정답 피해를 적용하고 처치 여부를 반환한 뒤 다음 문제를 준비한다.
+    # 몹을 배치된 지면이나 발판의 경계 안에서 왕복 이동시킨다.
+    def update(self):
+        if not self.active or self.patrol_right <= self.patrol_left:
+            return
+        self.rect.x += round(self.move_speed * self.direction)
+        if self.rect.left <= self.patrol_left:
+            self.rect.left = self.patrol_left
+            self.direction = 1
+        elif self.rect.left >= self.patrol_right:
+            self.rect.left = self.patrol_right
+            self.direction = -1
+
+    # 정답 한 번으로 문제 몹을 처치하고 결과를 반환한다.
     def defeat(self):
-        self.hp -= 1
-        # 체력이 0 이하가 되면 몹을 비활성화한다.
-        if self.hp <= 0:
-            self.active = False
-            return True
-        self.question = get_random_question(self.data["difficulty"], self.data["domain"])
-        return False
+        # 문제 몹은 정답 한 번에 처치되어 몹마다 문제를 하나만 낸다.
+        self.hp = 0
+        self.active = False
+        return True
