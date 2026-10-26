@@ -28,16 +28,21 @@ QUESTION_KINDS = {
 
 
 def _format(value):
+    # 분수는 기약 결과의 분자·분모로 표시하고 나머지는 문자열로 바꾼다.
+    # (값 표현을 선택하는 아래 분기에서 사용한다.)
     if isinstance(value, Fraction):
         return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
     return str(value)
 
 
 def _multiple_choice(prompt, answer, distractors, difficulty, domain):
+    # 정답과 오답 보기를 섞어 퀴즈 시스템이 쓰는 표준 자료형을 만든다.
     values = list(dict.fromkeys([answer, *distractors]))
     candidate = 1
+    # 중복 제거 후 보기 수가 부족하면 서로 다른 보기를 채운다.
     while len(values) < 4:
         value = f"{answer} (보기 {candidate})" if isinstance(answer, str) else answer + candidate
+        # 새로 만든 보기가 기존 보기와 다를 때만 추가한다.
         if value not in values:
             values.append(value)
         candidate += 1
@@ -56,18 +61,23 @@ def _multiple_choice(prompt, answer, distractors, difficulty, domain):
 
 
 def _easy_question(kind, domain):
+    # 쉬운 단계의 선택된 유형에 맞춰 산술·분수·측정 문제를 생성한다.
+    # 유형별 분기는 해당 문제 형식과 정답 계산을 선택한다.
     if kind == "multiply":
         a, b = random.randint(3, 30), random.randint(2, 9)
         answer = a * b
         return _multiple_choice(f"{a} × {b}는 얼마인가요?", answer,
                                 [answer + a, answer - a, a + b], "easy", domain)
+    # 나눗셈은 나누어떨어지는 수를 만들어 나머지 없는 문제를 낸다.
     if kind == "divide":
         divisor, quotient = random.randint(2, 9), random.randint(3, 30)
         dividend = divisor * quotient
         return _multiple_choice(f"{dividend} ÷ {divisor}는 얼마인가요?", quotient,
                                 [quotient + 1, quotient - 1, divisor], "easy", domain)
+    # 덧셈 또는 큰 수에서 작은 수를 빼는 문제를 무작위로 고른다.
     if kind == "add_subtract":
         a, b = random.randint(100, 999), random.randint(100, 999)
+        # 무작위로 덧셈과 뺄셈 중 하나를 구성한다.
         if random.choice((True, False)):
             answer = a + b
             prompt = f"{a} + {b}는 얼마인가요?"
@@ -76,18 +86,22 @@ def _easy_question(kind, domain):
             answer = a - b
             prompt = f"{a} − {b}는 얼마인가요?"
         return _multiple_choice(prompt, answer, [answer + 10, answer - 10, answer + 100], "easy", domain)
+    # 같은 분모 분수의 덧셈·뺄셈 문제를 만든다.
     if kind == "fraction":
         denominator = random.choice((2, 3, 4, 5, 6, 8, 10))
         a, b = random.randint(1, denominator - 1), random.randint(1, denominator - 1)
         op = random.choice(("+", "−"))
+        # 음수 분수가 나오지 않도록 뺄셈의 큰 분자를 앞에 둔다.
         if op == "−" and b > a:
             a, b = b, a
         answer = Fraction(a + b if op == "+" else a - b, denominator)
         distractors = [Fraction(a, denominator), Fraction(b, denominator), answer + Fraction(1, denominator)]
         return _multiple_choice(f"{a}/{denominator} {op} {b}/{denominator}는 얼마인가요?",
                                 answer, distractors, "easy", domain)
+    # 둘레나 넓이 유형에 맞는 직사각형 문제를 만든다.
     if kind in ("perimeter", "area"):
         width, height = random.randint(2, 15), random.randint(2, 15)
+        # 선택된 측정 유형에 맞춰 공식과 문제 문장을 정한다.
         if kind == "perimeter":
             answer = 2 * (width + height)
             prompt = f"가로가 {width} cm, 세로가 {height} cm인 직사각형의 둘레는 몇 cm인가요?"
@@ -110,6 +124,8 @@ def _easy_question(kind, domain):
 
 
 def _medium_question(kind, domain):
+    # 보통 단계의 정수·유리수·문자식·방정식·좌표 문제를 만든다.
+    # 유형 분기에 따라 해당 계산식을 정하고 선택지를 구성한다.
     if kind == "integers":
         a, b = random.randint(-20, 20), random.randint(-20, 20)
         op = random.choice(("+", "−", "×"))
@@ -140,6 +156,8 @@ def _medium_question(kind, domain):
 
 
 def _challenge_question(kind, domain):
+    # 어려움 단계에서 계산 순서와 사분면 판별 문제를 생성한다.
+    # 유형별 분기는 각 영역에 맞는 문제와 정답을 만든다.
     if kind == "integers":
         a, b, c = random.randint(-15, 15), random.randint(-12, 12), random.randint(2, 8)
         answer = a - b * c
@@ -166,6 +184,7 @@ def _challenge_question(kind, domain):
                                 [x + 2, x - 2, -x], "hard", domain)
 
     x, y = random.randint(-9, 9), random.randint(-9, 9)
+    # 사분면 판별 문제이므로 좌표축 위 점은 다시 뽑는다.
     while x == 0 or y == 0:
         x, y = random.randint(-9, 9), random.randint(-9, 9)
     quadrant = "제1사분면" if x > 0 and y > 0 else "제2사분면" if x < 0 < y else "제3사분면" if x < 0 and y < 0 else "제4사분면"
@@ -175,6 +194,8 @@ def _challenge_question(kind, domain):
 
 
 def _expert_question(kind, domain):
+    # 최상 단계의 복합 계산, 식, 방정식, 좌표 이동 문제를 만든다.
+    # 유형별 분기는 지정한 난이도의 문제 형식을 선택한다.
     if kind == "integers":
         a, b, c, d = random.randint(-12, 12), random.randint(-9, 9), random.randint(2, 7), random.randint(2, 5)
         answer = a - (b + c) * d
@@ -212,6 +233,7 @@ def _expert_question(kind, domain):
                 "제3사분면" if final_x < 0 and final_y < 0 else
                 "제4사분면" if final_x > 0 > final_y else "좌표축 위")
     distractors = ["제1사분면", "제2사분면", "제3사분면", "제4사분면"]
+    # 좌표축 위가 정답이면 보기 하나를 그 항목으로 바꾼다.
     if quadrant == "좌표축 위":
         distractors[0] = "좌표축 위"
     else:
@@ -223,11 +245,13 @@ def _expert_question(kind, domain):
 
 
 def generate_math_question(difficulty=None, domain=None):
-    """Generate a fresh question for one of four elementary-to-middle-school tiers."""
+    """지정 난이도와 영역에 맞는 새 문제를 골라 생성한다."""
     level = difficulty if difficulty in QUESTION_KINDS else random.choice(tuple(QUESTION_KINDS))
+    # 요청한 영역이 난이도에 맞지 않으면 해당 난이도의 영역 중 하나를 고른다.
     if domain not in QUESTION_KINDS[level]:
         domain = random.choice(tuple(QUESTION_KINDS[level]))
     kind = random.choice(QUESTION_KINDS[level][domain])
+    # 난이도에 해당하는 전용 생성기로 문제 작성을 넘긴다.
     if level == "easy":
         return _easy_question(kind, domain)
     if level == "medium":
