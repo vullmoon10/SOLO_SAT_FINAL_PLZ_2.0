@@ -6,6 +6,8 @@ ENEMY_TYPES = {  # 적 종류별 외형·난이도·보상 설정
               "sprite": "mob11.jpg", "wrong_sound": "mob2_wrong", "hp": 2, "score": 100},
     "advanced": {"color": (130, 90, 65), "size": (29, 58), "difficulty": "medium",
                  "sprite": "mob2.jpg", "wrong_sound": "mob1_wrong", "hp": 4, "score": 200},
+    "challenge": {"color": (94, 69, 150), "size": (27, 62), "difficulty": "hard",
+                  "sprite": "mob2.jpg", "wrong_sound": "mob1_wrong", "hp": 5, "score": 300},
 }
 
 

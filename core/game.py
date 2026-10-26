@@ -80,7 +80,7 @@ class Game:
         if result is None:
             return
         enemy = result.get("enemy")
-        if not result["correct"] and enemy and enemy.enemy_type == "advanced":
+        if not result["correct"] and enemy and enemy.enemy_type in ("advanced", "challenge"):
             enemy.wrong_until = pygame.time.get_ticks() + 1800
         self.score = add_score(self.score, result["score"])
         self.hp = apply_damage(self.hp, result["damage"])

@@ -26,7 +26,7 @@ def _multiple_choice(prompt, answer, distractors, difficulty):
         "q": prompt,
         "choices": [_format(value) for value in values],
         "answer": values.index(answer),
-        "time": 30 if difficulty == "easy" else 45,
+        "time": 30 if difficulty == "easy" else 45 if difficulty == "medium" else 60,
         "generated": True,
     }
 
@@ -117,7 +117,47 @@ def _medium_question():
                             [x, -y, y + 1], "medium")
 
 
+def _challenge_question():
+    kind = random.choice(("integers", "rational", "expression", "equation", "coordinate"))
+    if kind == "integers":
+        a, b, c = random.randint(-15, 15), random.randint(-12, 12), random.randint(2, 8)
+        answer = a - b * c
+        return _multiple_choice(f"정수 {a} − ({b}) × {c}의 값은?", answer,
+                                [ (a - b) * c, a + b * c, answer + c], "hard")
+    if kind == "rational":
+        d1, d2 = random.choice(((4, 5), (5, 6), (6, 7), (8, 9), (10, 12)))
+        a, b = random.randint(1, d1 - 1), random.randint(1, d2 - 1)
+        op = random.choice(("+", "−"))
+        left, right = Fraction(a, d1), Fraction(b, d2)
+        answer = left + right if op == "+" else left - right
+        distractors = [Fraction(a + b, d1 + d2), left - right if op == "+" else left + right,
+                       answer + Fraction(1, d1 * d2)]
+        return _multiple_choice(f"{a}/{d1} {op} {b}/{d2}를 계산하면?", answer, distractors, "hard")
+    if kind == "expression":
+        a, b, c, x = random.randint(2, 7), random.randint(-9, 9), random.randint(-9, 9), random.randint(-6, 8)
+        answer = a * x + b - c
+        return _multiple_choice(f"x = {x}일 때, {a}x + ({b}) − ({c})의 값은?", answer,
+                                [a * (x + b) - c, a * x - b - c, answer + a], "hard")
+    if kind == "equation":
+        a, x, b = random.randint(3, 9), random.randint(-10, 10), random.randint(-15, 15)
+        c = a * x + b
+        return _multiple_choice(f"{a}x + ({b}) = {c}일 때, x의 값은?", x,
+                                [x + 2, x - 2, -x], "hard")
+
+    x, y = random.randint(-9, 9), random.randint(-9, 9)
+    while x == 0 or y == 0:
+        x, y = random.randint(-9, 9), random.randint(-9, 9)
+    quadrant = "제1사분면" if x > 0 and y > 0 else "제2사분면" if x < 0 < y else "제3사분면" if x < 0 and y < 0 else "제4사분면"
+    distractors = ["제1사분면", "제2사분면", "제3사분면", "제4사분면"]
+    distractors.remove(quadrant)
+    return _multiple_choice(f"점 A({x}, {y})가 속하는 사분면은?", quadrant, distractors, "hard")
+
+
 def generate_math_question(difficulty=None):
-    """Return a new four-choice question at an elementary or middle-school level."""
-    level = difficulty if difficulty in ("easy", "medium") else random.choice(("easy", "medium"))
-    return _easy_question() if level == "easy" else _medium_question()
+    """Generate a fresh question for the easy, medium, or challenge tier."""
+    level = difficulty if difficulty in ("easy", "medium", "hard") else random.choice(("easy", "medium", "hard"))
+    if level == "easy":
+        return _easy_question()
+    if level == "medium":
+        return _medium_question()
+    return _challenge_question()
