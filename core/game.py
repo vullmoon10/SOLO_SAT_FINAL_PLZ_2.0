@@ -7,6 +7,7 @@ from world.generator import World
 from systems.quiz import Quiz
 from systems.combat import apply_damage
 from systems.progression import add_score
+from systems.achievements import AchievementTracker
 from ui.renderer import Renderer
 from core.events import handle_quiz_event
 from core.display import toggle_fullscreen
@@ -19,6 +20,8 @@ class Game:
         self.screen = screen
         self.clock = pygame.time.Clock()
         self.local_storage = local_storage
+        achievement_data = local_storage.load_achievements() if local_storage else None
+        self.achievement_tracker = AchievementTracker(achievement_data)
         self.audio = audio
         self.session = session or {}
         self.subject = self.session.get("subject", "수학")
@@ -93,6 +96,7 @@ class Game:
             self.camera_x = min(camera_limit,
                                 max(self.world.active_start, int(resume_state.get("camera_x", 0))))
             self.camera_y = max(0, int(resume_state.get("camera_y", 0)))
+        self._last_achievement_x = self.player.rect.x
         self.update_trash_mob_population()
         self.quiz = Quiz(cheats=self.cheats)
         self.renderer = Renderer(screen)
@@ -100,6 +104,7 @@ class Game:
         self.hp = int((resume_state or {}).get("hp", MAX_HP))
         self.message = ""
         self.message_until = 0
+        self._record_achievement("best_score", self.score)
         self.running = True
         self.game_over = False
         self.victory = False
@@ -118,6 +123,14 @@ class Game:
     def show_message(self, text, duration=2500):
         self.message = text
         self.message_until = pygame.time.get_ticks() + duration
+
+    # 진행 통계를 갱신하고 새 도전과제를 알린다.
+    def _record_achievement(self, metric, amount=1):
+        newly_unlocked = self.achievement_tracker.update(metric, amount)
+        if newly_unlocked:
+            if self.local_storage:
+                self.local_storage.save_achievements(self.achievement_tracker.export())
+            self.show_message(f"도전과제 달성: {newly_unlocked[0]['title']}", duration=4000)
 
     # 잡몹 생성 밀도에 따라 후보별로 결정적으로 활성화한다.
     def update_trash_mob_population(self):
@@ -140,6 +153,7 @@ class Game:
     def save_state(self, finished=False, final=False):
         # 로컬 저장소가 있을 때만 진행 파일과 기록을 갱신한다.
         if self.local_storage:
+            self.local_storage.save_achievements(self.achievement_tracker.export())
             nickname = self.session.get("nickname", "player-1")
             # 게임 오버로 끝난 경우 랭킹에 기록하고 자동 저장을 지운다.
             if finished:
@@ -185,6 +199,9 @@ class Game:
         if not result["correct"] and enemy and enemy.data["difficulty"] != "easy":
             enemy.wrong_until = pygame.time.get_ticks() + 1800
         self.score = add_score(self.score, result["score"])
+        if result.get("correct") and result.get("defeated"):
+            self._record_achievement("defeats")
+        self._record_achievement("best_score", self.score)
         self.hp = apply_damage(self.hp, result["damage"])
         # 피해가 있고 오디오가 연결된 경우 오답 효과음을 재생한다.
         if result["damage"] > 0 and self.audio:
@@ -223,6 +240,9 @@ class Game:
             return
         enemy.defeat()
         self.score += enemy.data["score"]
+        self._record_achievement("defeats")
+        self._record_achievement("energy_kills")
+        self._record_achievement("best_score", self.score)
         self.show_message(f"역학적 에너지 충돌! 문제몹 처치 · Ek+Ep {energy:.1f}")
 
     # 플레이어와 닿은 아이템을 획득하고 점수·체력·시간제 강화 효과를 적용한다.
@@ -233,8 +253,12 @@ class Game:
                 continue
             item["collected"] = True
             self.collected_items.add(item["id"])
+            self._record_achievement("items")
+            self._record_achievement("item_types", item["type"])
             if item["type"] == "coin":
                 self.score += 50
+                self._record_achievement("coins")
+                self._record_achievement("best_score", self.score)
                 message = "코인 +50"
             elif item["type"] == "heart":
                 before = self.hp
@@ -281,6 +305,8 @@ class Game:
                 defeated += int(mob.take_damage(damage))
         if defeated:
             self.score += defeated * 25
+            self._record_achievement("defeats", defeated)
+            self._record_achievement("best_score", self.score)
             self.show_message(f"잡몹 처치 +{defeated * 25} · 피해 {damage}")
         elif damaged:
             self.show_message(f"잡몹 피해 {damage}")
@@ -405,6 +431,10 @@ class Game:
         previous_player_rect = self.player.rect.copy()
         keys = pygame.key.get_pressed()
         self.player.update(keys, self.world)
+        distance = max(0, self.player.rect.x - self._last_achievement_x)
+        self._last_achievement_x = self.player.rect.x
+        if distance:
+            self._record_achievement("distance", distance)
         impact_energy = max(energy_before_movement, self.mechanical_energy())
         # K/P를 누르고 있는 동안 각 공격의 쿨다운 간격마다 반복해서 휘두른다.
         if keys[pygame.K_p]:
@@ -493,6 +523,7 @@ class Game:
         if self.hp <= 0:
             self.set_game_over()
         elif not self.world.infinite and self.player.rect.right >= self.world.base_world_end - 72:
+            self._record_achievement("course_clears")
             self.victory = True
 
     # 현재 월드와 HUD 위에 퀴즈·일시 정지·종료 오버레이를 그린다.
