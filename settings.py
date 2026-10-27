@@ -6,14 +6,14 @@ import random
 
 WIDTH, HEIGHT, FPS = 1000, 600, 60  # 화면 크기와 목표 초당 프레임 수
 TITLE = "SOLO SAT"  # 창 제목
-MOVE_SPEED, GRAVITY, JUMP_POWER = 5, 0.5, -10  # 이동·중력·점프 물리값
+MOVE_SPEED, GRAVITY, JUMP_POWER = 20, 0.5, -10  # 이동·중력·점프 물리값
 
 
 def random_physics():
     """월드 시드와 별개로 한 판에 적용할 제한된 물리값을 고른다."""
     rng = random.SystemRandom()
     return {
-        "move_speed": round(rng.uniform(4.5, 5.5), 2),
+        "move_speed": round(rng.uniform(18.0, 22.0), 2),
         "gravity": round(rng.uniform(0.45, 0.55), 2),
         "jump_power": round(rng.uniform(-10.5, -9.5), 2),
     }

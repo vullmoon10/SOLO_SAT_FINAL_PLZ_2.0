@@ -25,6 +25,8 @@ class Game:
         self.cheats = choose_cheat() if cheats is None else cheats
         self.physics = ((resume_state or {}).get("physics")
                         or self.session.get("physics") or random_physics())
+        if self.physics.get("move_speed", 0) < 12:
+            self.physics["move_speed"] = random_physics()["move_speed"]
         self.session["physics"] = self.physics
         self.player = Player(cheats=self.cheats, physics=self.physics)
         self.collected_items = set((resume_state or {}).get("collected_items", []))

@@ -218,7 +218,7 @@ class Renderer:
                 self.screen.blit(alert, alert.get_rect(center=(rect.centerx, rect.top - 6)))
 
     # 시작 전 화면을 어둡게 덮고 남은 카운트다운을 보여준다.
-    def draw_start_countdown(self, seconds):
+    def draw_start_countdown(self, seconds, physics):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((10, 15, 25, 175))
         self.screen.blit(overlay, (0, 0))
@@ -226,6 +226,11 @@ class Renderer:
         number = pygame.font.SysFont("malgungothic", 110, bold=True).render(str(seconds), True, YELLOW)
         self.screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 75)))
         self.screen.blit(number, number.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40)))
+        details = pygame.font.SysFont("malgungothic", 19).render(
+            f"이동 {physics['move_speed']:.2f} · 중력 {physics['gravity']:.2f} · 점프 {physics['jump_power']:.2f}",
+            True, WHITE,
+        )
+        self.screen.blit(details, details.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 125)))
 
     # 플레이를 멈춘 동안 재개 안내를 화면 중앙에 표시한다.
     def draw_pause_overlay(self):
@@ -276,7 +281,7 @@ class Renderer:
         speed = math.hypot(player.horizontal_velocity, player.vy)
         kinetic_energy = 0.5 * speed ** 2
         height = max(0, GROUND_Y - player.rect.bottom)
-        potential_energy = height * GRAVITY
+        potential_energy = height * player.physics["gravity"]
         panel = pygame.Rect(WIDTH - 205, 76, 190, 82)
         pygame.draw.rect(self.screen, (250, 249, 239), panel, border_radius=7)
         pygame.draw.rect(self.screen, DARK, panel, 2, border_radius=7)
