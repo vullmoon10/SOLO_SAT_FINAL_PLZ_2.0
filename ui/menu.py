@@ -13,6 +13,8 @@ class Menu:
         self.screen = screen
         self.audio = audio
         self.local_storage = local_storage
+        achievement_data = local_storage.load_achievements() if local_storage else None
+        self.achievement_tracker = AchievementTracker(achievement_data)
         self.clock = pygame.time.Clock()
         self.page = "main"
         self.selected = 0
@@ -87,18 +89,16 @@ class Menu:
         self._text("도전과제", (500, 95), self.title_font, WHITE)
         self._text("달성 조건과 누적 진행도", (500, 143), self.font, (211, 220, 230))
         self.buttons = []
-        data = self.local_storage.load_achievements() if self.local_storage else None
-        tracker = AchievementTracker(data)
         for index, achievement in enumerate(ACHIEVEMENTS):
             y = 176 + index * 37
-            unlocked = achievement["id"] in tracker.unlocked
+            unlocked = achievement["id"] in self.achievement_tracker.unlocked
             color = YELLOW if unlocked else (238, 242, 247)
             title = self.small.render(
                 f"{'★' if unlocked else '◇'} {achievement['title']} · {achievement['description']}",
                 True, color,
             )
             self.screen.blit(title, title.get_rect(midleft=(270, y)))
-            current = tracker._progress(achievement)
+            current = self.achievement_tracker._progress(achievement)
             status = "달성" if unlocked else f"{min(current, achievement['target'])}/{achievement['target']}"
             progress = self.small.render(status, True, color)
             self.screen.blit(progress, progress.get_rect(midright=(730, y)))

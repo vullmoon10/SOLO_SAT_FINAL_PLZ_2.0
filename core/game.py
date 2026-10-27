@@ -121,6 +121,10 @@ class Game:
 
     # 화면 알림 문구와 표시 종료 시각을 설정한다.
     def show_message(self, text, duration=2500):
+        if (self.message.startswith("도전과제 달성:")
+                and pygame.time.get_ticks() < self.message_until
+                and not str(text).startswith("도전과제 달성:")):
+            return
         self.message = text
         self.message_until = pygame.time.get_ticks() + duration
 
