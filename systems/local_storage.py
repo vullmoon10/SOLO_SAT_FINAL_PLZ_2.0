@@ -139,6 +139,21 @@ class LocalStorage:
         self._write(self.profile_path, profile)
         return f"player-{number}"
 
+    # 프로필에 저장된 도전과제 진행 데이터를 반환한다.
+    def load_achievements(self):
+        profile = self._read(self.profile_path, DEFAULT_PROFILE.copy())
+        if not isinstance(profile, dict):
+            return {"stats": {}, "unlocked": []}
+        data = profile.get("achievements", {})
+        return data if isinstance(data, dict) else {"stats": {}, "unlocked": []}
+
+    # 기존 프로필 필드를 유지하면서 도전과제 데이터만 갱신한다.
+    def save_achievements(self, data):
+        profile = self._read(self.profile_path, DEFAULT_PROFILE.copy())
+        profile = profile if isinstance(profile, dict) else DEFAULT_PROFILE.copy()
+        profile["achievements"] = data
+        self._write(self.profile_path, profile)
+
     # 새 진행 상태를 저장 파일에 기록한다.
     def save(self, state):
         # 저장 상태는 JSON 객체로만 허용한다.
