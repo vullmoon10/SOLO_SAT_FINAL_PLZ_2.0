@@ -102,6 +102,7 @@ class Game:
         self.message_until = 0
         self.running = True
         self.game_over = False
+        self.victory = False
         self.paused = False
         self.cheat_menu_open = False
         self.dragging_trash_slider = False
@@ -196,7 +197,7 @@ class Game:
     # 게임 오버 상태를 한 번만 설정하고 종료 효과음을 재생한다.
     def set_game_over(self):
         # 이미 게임 오버라면 중복 처리를 막는다.
-        if self.game_over:
+        if self.game_over or self.victory:
             return
         self.game_over = True
         # 오디오 기능이 준비되어 있을 때 종료 효과음을 재생한다.
@@ -327,8 +328,8 @@ class Game:
                     self.cheat_menu_open = False
             return
         # 게임 오버 화면에서는 ESC로만 게임을 종료한다.
-        if self.game_over:
-            # ESC 입력은 게임 루프를 종료한다.
+        if self.game_over or self.victory:
+            # 종료 화면에서 ESC를 누르면 메뉴로 돌아간다.
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
             return
@@ -388,7 +389,8 @@ class Game:
     # 한 프레임의 이동, 충돌, 월드 생성, 체력 상태를 갱신한다.
     def update(self):
         # 플레이가 멈춰야 하는 상태에서는 월드 갱신을 건너뛴다.
-        if self.game_over or self.paused or self.quiz.active or pygame.time.get_ticks() < self.countdown_until:
+        if (self.game_over or self.victory or self.paused or self.quiz.active
+                or pygame.time.get_ticks() < self.countdown_until):
             return
         # 지면 착지에서 vy가 0으로 초기화되기 전에 접촉 프레임의 에너지를 저장한다.
         energy_before_movement = self.mechanical_energy()
@@ -490,11 +492,15 @@ class Game:
         # 낙하나 가시 피해로 체력이 소진되면 게임을 끝낸다.
         if self.hp <= 0:
             self.set_game_over()
+        elif not self.world.infinite and self.player.rect.right >= self.world.base_world_end - 72:
+            self.victory = True
 
     # 현재 월드와 HUD 위에 퀴즈·일시 정지·종료 오버레이를 그린다.
     def draw(self):
         self.renderer.draw_background(self.camera_x, self.camera_y)
         self.renderer.draw_world(self.world, self.camera_x, self.camera_y)
+        if not self.world.infinite:
+            self.renderer.draw_goal(self.world.base_world_end, self.camera_x, self.camera_y)
         self.renderer.draw_player(self.player, self.camera_x, self.camera_y,
                                   rotation=90 if self.game_over else 0)
         self.renderer.draw_stick(self.player, self.camera_x, self.camera_y)
@@ -505,7 +511,9 @@ class Game:
         self.renderer.draw_trash_mob_slider(self.trash_mob_rate)
         self.renderer.draw_quiz(self.quiz)
         # 우선순위에 따라 한 가지 상태 오버레이를 표시한다.
-        if self.game_over:
+        if self.victory:
+            self.renderer.draw_victory(self.score)
+        elif self.game_over:
             self.renderer.draw_game_over(self.score)
         # 일시 정지 상태에는 재개 안내를 표시한다.
         elif self.paused:
@@ -557,4 +565,4 @@ class Game:
                 self.save_state()
             self.draw()
             pygame.display.flip()
-        self.save_state(finished=self.game_over, final=True)
+        self.save_state(finished=self.game_over or self.victory, final=True)

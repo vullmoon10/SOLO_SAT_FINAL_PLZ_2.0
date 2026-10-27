@@ -356,6 +356,21 @@ class Renderer:
         instruction = self._pixel_text("ESC: TITLE SCREEN", (35, 10, 12), scale=2, size=9)
         self.screen.blit(instruction, instruction.get_rect(center=(WIDTH // 2, int(HEIGHT * 0.78))))
 
+    # 코스 끝에 체크무늬 깃발을 표시한다.
+    def draw_goal(self, world_end, camera_x, camera_y=0):
+        x = world_end - 72 - camera_x
+        ground_y = GROUND_Y + camera_y
+        if x < -40 or x > WIDTH + 40:
+            return
+        pole_x = int(x)
+        pygame.draw.line(self.screen, (45, 48, 54), (pole_x, ground_y), (pole_x, ground_y - 132), 5)
+        flag = [(pole_x + 3, ground_y - 130), (pole_x + 54, ground_y - 114),
+                (pole_x + 3, ground_y - 98)]
+        pygame.draw.polygon(self.screen, (235, 65, 65), flag)
+        pygame.draw.polygon(self.screen, WHITE, flag, 2)
+        marker = SMALL.render("GOAL", True, DARK)
+        self.screen.blit(marker, marker.get_rect(center=(pole_x + 26, ground_y - 78)))
+
     # 코스 도착 시 클리어 문구와 최종 점수를 표시한다.
     def draw_victory(self, score):
         tint = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
