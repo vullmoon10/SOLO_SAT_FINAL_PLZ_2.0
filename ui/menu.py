@@ -3,14 +3,16 @@
 import pygame
 from settings import WIDTH, HEIGHT, SKY, MOUNTAIN, GRASS, WHITE, YELLOW
 from core.display import toggle_fullscreen
+from systems.achievements import ACHIEVEMENTS, AchievementTracker
 
 
 # 타이틀 화면의 메뉴, 저장 불러오기, 키보드·마우스 조작을 관리한다.
 class Menu:
     # 메뉴 화면에 필요한 표시 상태와 입력 상태를 초기화한다.
-    def __init__(self, screen, audio=None):
+    def __init__(self, screen, audio=None, local_storage=None):
         self.screen = screen
         self.audio = audio
+        self.local_storage = local_storage
         self.clock = pygame.time.Clock()
         self.page = "main"
         self.selected = 0
@@ -65,11 +67,12 @@ class Menu:
         self._text("SOLO SAT 2.0.3", (500, 163), self.font, YELLOW)
         self._text("STUDY · SURVIVE · RANK UP", (500, 193), self.small, (204, 218, 232))
         self.buttons = []
-        self._button("새 게임", 235, 0, "새로운 도전을 시작합니다")
-        self._button("불러오기", 305, 1, "저장된 게임 이어 하기")
-        self._button("랭킹", 375, 2)
-        self._button("종료", 435, 3)
-        self._text("↑/↓ 선택 · Enter 실행 · 마우스 클릭", (500, 510), self.small, (211, 220, 230))
+        self._button("새 게임", 225, 0, "새로운 도전을 시작합니다")
+        self._button("불러오기", 290, 1, "저장된 게임 이어 하기")
+        self._button("도전과제", 355, 2)
+        self._button("랭킹", 410, 3)
+        self._button("종료", 465, 4)
+        self._text("↑/↓ 선택 · Enter 실행 · 마우스 클릭", (500, 535), self.small, (211, 220, 230))
 
     # 자동 저장 불러오기와 뒤로 가기 항목을 그린다.
     def _draw_load(self):
@@ -79,15 +82,38 @@ class Menu:
         self._button("LOCAL SAVE", 275, 0, "이 컴퓨터의 자동 저장")
         self._button("뒤로", 440, 1)
 
+    # 해금 상태와 현재 진행도를 포함한 도전과제 목록을 표시한다.
+    def _draw_achievements(self):
+        self._text("도전과제", (500, 95), self.title_font, WHITE)
+        self._text("달성 조건과 누적 진행도", (500, 143), self.font, (211, 220, 230))
+        self.buttons = []
+        data = self.local_storage.load_achievements() if self.local_storage else None
+        tracker = AchievementTracker(data)
+        for index, achievement in enumerate(ACHIEVEMENTS):
+            y = 176 + index * 37
+            unlocked = achievement["id"] in tracker.unlocked
+            color = YELLOW if unlocked else (238, 242, 247)
+            title = self.small.render(
+                f"{'★' if unlocked else '◇'} {achievement['title']} · {achievement['description']}",
+                True, color,
+            )
+            self.screen.blit(title, title.get_rect(midleft=(270, y)))
+            current = tracker._progress(achievement)
+            status = "달성" if unlocked else f"{min(current, achievement['target'])}/{achievement['target']}"
+            progress = self.small.render(status, True, color)
+            self.screen.blit(progress, progress.get_rect(midright=(730, y)))
+        self._button("뒤로", 482, 0)
+
     # 현재 메뉴 페이지에 알맞은 화면 요소를 렌더링한다.
     def draw(self):
         self._background()
         # 첫 페이지와 불러오기 페이지에 맞는 메뉴 구성을 선택한다.
         if self.page == "main":
             self._draw_main()
-        # 메인 페이지가 아니면 저장 불러오기 화면을 그린다.
-        else:
+        elif self.page == "load":
             self._draw_load()
+        else:
+            self._draw_achievements()
 
     # 선택된 메뉴 번호를 게임 동작 이름으로 바꾸거나 페이지를 전환한다.
     def _activate(self, index):
@@ -99,12 +125,18 @@ class Menu:
             # 불러오기를 선택하면 저장 선택 페이지로 전환한다.
             if index == 1:
                 self.page, self.selected = "load", 0
-            # 랭킹은 출력 동작으로 전달한다.
+            # 도전과제 목록은 메뉴 하위 화면으로 연다.
             elif index == 2:
+                self.page, self.selected = "achievements", 0
+            # 랭킹은 출력 동작으로 전달한다.
+            elif index == 3:
                 return "leaderboard"
             # 종료는 메인 루프에서 처리할 동작 이름으로 전달한다.
-            elif index == 3:
+            elif index == 4:
                 return "quit"
+            return None
+        if self.page == "achievements":
+            self.page, self.selected = "main", 2
             return None
         back_index = 1
         # 뒤로 버튼은 첫 페이지로 돌아간다.
@@ -144,7 +176,7 @@ class Menu:
                         self.selected = max(0, self.selected - 1)
                     # 아래쪽 키는 페이지의 마지막 항목을 넘지 않게 이동한다.
                     elif event.key in (pygame.K_DOWN, pygame.K_s):
-                        max_index = 3 if self.page == "main" else 1
+                        max_index = 4 if self.page == "main" else (0 if self.page == "achievements" else 1)
                         self.selected = min(max_index, self.selected + 1)
                     # Enter나 Space는 현재 선택 메뉴를 실행한다.
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE):

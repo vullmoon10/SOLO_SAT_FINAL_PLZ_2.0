@@ -58,7 +58,7 @@ def main():
     try:
         # 메뉴에서 선택한 동작에 따라 게임·랭킹·종료 화면을 이어 간다.
         while True:
-            action = Menu(screen, audio=audio).run()
+            action = Menu(screen, audio=audio, local_storage=storage).run()
             screen = pygame.display.get_surface()
             # 종료 메뉴를 선택하면 메인 반복을 끝낸다.
             if action == "quit":

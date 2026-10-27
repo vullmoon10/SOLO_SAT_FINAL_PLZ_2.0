@@ -21,6 +21,13 @@ ACHIEVEMENTS = (
 )
 
 
+def _nonnegative_int(value):
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 class AchievementTracker:
     """도전과제 통계와 해금 상태를 저장 가능한 형태로 유지한다."""
 
@@ -28,18 +35,22 @@ class AchievementTracker:
         data = data if isinstance(data, dict) else {}
         raw_stats = data.get("stats", {})
         raw_stats = raw_stats if isinstance(raw_stats, dict) else {}
+        raw_item_types = raw_stats.get("item_types", [])
+        raw_item_types = raw_item_types if isinstance(raw_item_types, (list, tuple, set)) else []
         self.stats = {
-            "coins": max(0, int(raw_stats.get("coins", 0) or 0)),
-            "items": max(0, int(raw_stats.get("items", 0) or 0)),
-            "item_types": sorted(set(raw_stats.get("item_types", [])) & {"coin", "heart", "speed", "jump"}),
-            "defeats": max(0, int(raw_stats.get("defeats", 0) or 0)),
-            "energy_kills": max(0, int(raw_stats.get("energy_kills", 0) or 0)),
-            "best_score": max(0, int(raw_stats.get("best_score", 0) or 0)),
-            "distance": max(0, int(raw_stats.get("distance", 0) or 0)),
-            "course_clears": max(0, int(raw_stats.get("course_clears", 0) or 0)),
+            "coins": _nonnegative_int(raw_stats.get("coins", 0)),
+            "items": _nonnegative_int(raw_stats.get("items", 0)),
+            "item_types": sorted(set(raw_item_types) & {"coin", "heart", "speed", "jump"}),
+            "defeats": _nonnegative_int(raw_stats.get("defeats", 0)),
+            "energy_kills": _nonnegative_int(raw_stats.get("energy_kills", 0)),
+            "best_score": _nonnegative_int(raw_stats.get("best_score", 0)),
+            "distance": _nonnegative_int(raw_stats.get("distance", 0)),
+            "course_clears": _nonnegative_int(raw_stats.get("course_clears", 0)),
         }
         valid_ids = {item["id"] for item in ACHIEVEMENTS}
-        self.unlocked = set(data.get("unlocked", [])) & valid_ids
+        raw_unlocked = data.get("unlocked", [])
+        raw_unlocked = raw_unlocked if isinstance(raw_unlocked, (list, tuple, set)) else []
+        self.unlocked = set(raw_unlocked) & valid_ids
         self._check()
 
     def update(self, metric, amount=1):
