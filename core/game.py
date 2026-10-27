@@ -1,7 +1,7 @@
 """게임 상태와 메인 플레이 루프, 충돌·퀴즈 결과 처리를 조정한다."""
 
 import pygame
-from settings import WIDTH, HEIGHT, MAX_HP, GROUND_Y, GRAVITY, choose_cheat
+from settings import WIDTH, HEIGHT, MAX_HP, GROUND_Y, choose_cheat, random_physics
 from entities.player import Player
 from world.generator import World
 from systems.quiz import Quiz
@@ -23,12 +23,15 @@ class Game:
         self.session = session or {}
         self.subject = self.session.get("subject", "수학")
         self.cheats = choose_cheat() if cheats is None else cheats
-        self.player = Player(cheats=self.cheats)
+        self.physics = ((resume_state or {}).get("physics")
+                        or self.session.get("physics") or random_physics())
+        self.session["physics"] = self.physics
+        self.player = Player(cheats=self.cheats, physics=self.physics)
         self.collected_items = set((resume_state or {}).get("collected_items", []))
         now = pygame.time.get_ticks()
         self.player.speed_boost_until = now + int((resume_state or {}).get("speed_boost_remaining", 0))
         self.player.jump_boost_until = now + int((resume_state or {}).get("jump_boost_remaining", 0))
-        seed = (resume_state or {}).get("world_seed")
+        seed = (resume_state or {}).get("world_seed", self.session.get("world_seed"))
         self.world = World(seed=seed, infinite=self.cheats.get("infinite_map", False))
         self.trash_mob_rate = max(0, min(100, int((resume_state or {}).get("trash_mob_rate", 50))))
         for item in self.world.items:
@@ -143,7 +146,8 @@ class Game:
             else:
                 now = pygame.time.get_ticks()
                 state = {"nickname": nickname, "subject": self.subject, "score": self.score,
-                         "hp": self.hp, "world_seed": self.world.seed, "player_x": self.player.rect.x,
+                         "hp": self.hp, "world_seed": self.world.seed, "physics": self.physics,
+                         "player_x": self.player.rect.x,
                          "world_start": self.world.world_start, "world_end": self.world.world_end,
                          "player_y": self.player.rect.y, "player_facing": self.player.facing,
                          "player_speed": self.player.horizontal_velocity,
@@ -203,7 +207,7 @@ class Game:
 
     def potential_energy(self):
         height = max(0, GROUND_Y - self.player.rect.bottom)
-        return height * GRAVITY
+        return height * self.physics["gravity"]
 
     def mechanical_energy(self):
         return self.kinetic_energy() + self.potential_energy()
@@ -507,7 +511,7 @@ class Game:
         # 시작 대기 중에는 카운트다운 숫자를 표시한다.
         elif pygame.time.get_ticks() < self.countdown_until:
             seconds = max(1, (self.countdown_until - pygame.time.get_ticks() + 999) // 1000)
-            self.renderer.draw_start_countdown(seconds)
+            self.renderer.draw_start_countdown(seconds, self.physics)
         if self.cheat_menu_open:
             self._draw_cheat_menu()
 
@@ -520,9 +524,9 @@ class Game:
         pygame.draw.rect(self.screen, (39, 54, 67), panel, 3, border_radius=14)
         lines = [
             ("치트 선택", (39, 54, 67), 32),
-            ("1 무피해   2 초고속   3 높이 점프", (39, 54, 67), 20),
-            ("4 초고속 + 높이 점프", (39, 54, 67), 20),
-            ("5 전체 치트   0 치트 끄기", (39, 54, 67), 20),
+            ("1 Damage = 0   2 Hyper ΔX   3 Hyper ΔY", (39, 54, 67), 20),
+            ("4 Hyper Δ√(X²+Y²)", (39, 54, 67), 20),
+            ("5 ULTIMATE   0 치트 끄기", (39, 54, 67), 20),
             ("숫자 키로 적용 · F9 또는 ESC로 닫기", (80, 90, 100), 17),
         ]
         y = panel.y + 30

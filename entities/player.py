@@ -7,7 +7,7 @@ from settings import MOVE_SPEED, GRAVITY, JUMP_POWER, GROUND_Y, PLAYER_WIDTH, PL
 # 플레이어의 충돌 상자와 입력에 따른 이동 상태를 관리한다.
 class Player:  # 플레이어 위치와 이동 물리를 관리
     # 시작 좌표와 수직 이동·등반·치트 상태를 초기화한다.
-    def __init__(self, x=60, y=450, cheats=None):  # 시작 위치와 이동 상태를 초기화
+    def __init__(self, x=60, y=450, cheats=None, physics=None):  # 시작 위치와 이동 상태를 초기화
         self.rect = pygame.Rect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT)  # 플레이어 충돌 상자
         self.vy = 0.0  # 세로 속도
         self.on_ground = False  # 지면 착지 여부
@@ -21,6 +21,9 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
         self.stick_mode = "normal"  # 막대기 공격 연출 종류
         self.special_effect_until = 0  # 특수 공격 효과 종료 시각
         self.cheats = cheats if cheats is not None else {}  # 이동에 적용할 치트 설정
+        self.physics = physics or {
+            "move_speed": MOVE_SPEED, "gravity": GRAVITY, "jump_power": JUMP_POWER,
+        }
 
     # 입력, 중력, 사다리 이동과 지형 착지를 한 프레임 계산한다.
     def update(self, keys, world):  # 입력·중력·지형 충돌을 반영해 위치를 갱신
@@ -28,9 +31,9 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
         if self.cheats.get("superspeed"):
             max_speed = 100
         elif now < self.speed_boost_until:
-            max_speed = MOVE_SPEED * 2
+            max_speed = self.physics["move_speed"] * 2
         else:
-            max_speed = MOVE_SPEED
+            max_speed = self.physics["move_speed"]
         horizontal = int(bool(keys[pygame.K_d] or keys[pygame.K_RIGHT])) - int(bool(keys[pygame.K_a] or keys[pygame.K_LEFT]))
         if horizontal:
             self.facing = 1 if horizontal > 0 else -1
@@ -67,7 +70,7 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
             self.vy = 0  # 등반 중 중력을 정지
         # 사다리를 타지 않을 때에는 낙하 중력을 적용한다.
         else:
-            self.vy += GRAVITY  # 낙하 속도 상한 없이 중력을 계속 반영
+            self.vy += self.physics["gravity"]  # 낙하 속도 상한 없이 중력을 계속 반영
             self.rect.y += int(self.vy)  # 세로 속도를 위치에 적용
 
         self.on_ground = False  # 이번 프레임 착지 여부를 다시 판정
@@ -103,7 +106,7 @@ class Player:  # 플레이어 위치와 이동 물리를 관리
         elif pygame.time.get_ticks() < self.jump_boost_until:
             self.vy = -18
         else:
-            self.vy = JUMP_POWER
+            self.vy = self.physics["jump_power"]
         self.on_ground = False  # 점프 직후 지면 상태를 해제
         self.climbing = False  # 점프 시 등반 상태를 해제
 

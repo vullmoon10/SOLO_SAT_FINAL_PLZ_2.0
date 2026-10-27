@@ -35,8 +35,8 @@ class World(Terrain):
         x = start_x
         # 일정 수의 구간을 하나씩 만들며 월드 끝 좌표를 갱신한다.
         for index in range(count):
-            # 구간을 길게 잡고 구간마다 여러 발판을 배치해 진행 밀도를 높인다.
-            width = widths[index] if widths is not None else self.rng.randint(330, 400)
+            # 지면 구간 길이를 바꿔 진행 리듬을 다양하게 만든다.
+            width = widths[index] if widths is not None else self.rng.randint(290, 500)
             self.ground_segments.append(pygame.Rect(x, GROUND_Y, width, HEIGHT - GROUND_Y))
             # 확률에 따라 배경 장식을 추가한다.
             if self.rng.random() < 0.45:
@@ -49,21 +49,28 @@ class World(Terrain):
                 # 안전 구간 뒤에 있는 경우에만 실제 가시를 추가한다.
                 if not self.is_spawn_safe(spike_x):
                     self.spikes.append({"x": spike_x, "y": GROUND_Y, "count": self.rng.randint(3, 5)})
-            # 구간마다 최소 두 발판, 일부 구간에는 세 번째 발판을 만든다.
-            lanes = [0, 1, 2]
-            self.rng.shuffle(lanes)
-            lane_count = 3 if self.rng.random() < 0.7 else 2
-            if lane_count == 2:
-                lanes = [0, 2]
-            else:
-                lanes = lanes[:lane_count]
-            lane_width = width / 3
-            for lane in sorted(lanes):
-                pw = self.rng.randint(85, 110)
+            # 구간별 구조를 골라 발판 개수와 높이 흐름을 바꾼다.
+            layout = self.rng.choices(
+                ("sparse", "pair", "stairs", "cluster"), weights=(18, 30, 34, 18), k=1
+            )[0]
+            platform_count = {"sparse": 1, "pair": 2, "stairs": 3, "cluster": 4}[layout]
+            base_height = self.rng.randint(385, 455)
+            stair_direction = self.rng.choice((-1, 1))
+            stair_step = self.rng.randint(15, 25)
+            for lane in range(platform_count):
+                lane_width = width / platform_count
+                max_platform_width = max(76, min(135, int(lane_width) - 18))
+                pw = self.rng.randint(75, max_platform_width)
                 cell_start = x + int(lane * lane_width)
                 cell_end = x + int((lane + 1) * lane_width)
                 px = cell_start + max(0, (cell_end - cell_start - pw) // 2)
-                py = self.rng.randint(365, 460)
+                if layout == "stairs":
+                    py = base_height - stair_direction * lane * stair_step
+                elif layout == "cluster":
+                    py = base_height + self.rng.randint(-55, 55)
+                else:
+                    py = base_height + self.rng.randint(-25, 25)
+                py = max(365, min(460, py))
                 # 시작 위치 주변에는 발판과 그 부속 오브젝트를 만들지 않는다.
                 if not self.is_spawn_safe(px):
                     self.platforms.append(pygame.Rect(px, py, pw, 12))

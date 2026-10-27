@@ -8,6 +8,7 @@ from systems.local_storage import LocalStorage
 from systems.audio import AudioManager
 from ui.menu import Menu
 from ui.name_entry import get_player_name
+from ui.seed_entry import get_world_seed
 
 
 # 새 게임용 닉네임과 과목 정보를 만들고 초기 저장 상태를 반환한다.
@@ -16,8 +17,11 @@ def _new_session(storage, screen, audio=None):
     if nickname is None:
         return None
     nickname = nickname.strip() or storage.next_nickname()
+    seed = get_world_seed(screen, audio=audio)
+    if seed is False:
+        return False
     subject = "수학"
-    return {"nickname": nickname, "subject": subject}, None
+    return {"nickname": nickname, "subject": subject, "world_seed": seed}, None
 
 
 # 자동 저장을 읽어 이어 하기 세션을 만들며 저장 데이터가 없으면 중단한다.
@@ -62,9 +66,11 @@ def main():
             # 새 게임은 새 세션을 만들고 게임 화면으로 전환한다.
             if action == "new_game":
                 selected = _new_session(storage, screen, audio=audio)
+                screen = pygame.display.get_surface()
                 if selected is None:
                     break
-                screen = pygame.display.get_surface()
+                if selected is False:
+                    continue
                 session, state = selected
                 Game(screen, session, state, local_storage=storage, audio=audio).run()
                 screen = pygame.display.get_surface()
