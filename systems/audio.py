@@ -33,7 +33,7 @@ class AudioManager:
         self.available = True
         # 배경 음악의 기본 음량과 다음 곡 알림 이벤트를 설정한다.
         try:
-            pygame.mixer.music.set_volume(0.35)
+            pygame.mixer.music.set_volume(500)
             pygame.mixer.music.set_endevent(MUSIC_END_EVENT)
         # 배경 음악 설정이 실패해도 게임 자체는 실행한다.
         except pygame.error:
